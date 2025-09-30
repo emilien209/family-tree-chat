@@ -8,7 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Globe } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const languages = [
   { code: "en", name: "English", flag: "🇬🇧" },
@@ -19,18 +20,21 @@ const languages = [
 
 export default function LanguageSwitcher() {
   const [selectedLanguage, setSelectedLanguage] = useState(languages[0]);
+  const { toast } = useToast();
 
-  // In a real app, this would trigger a change in the i18n library
   const handleSelect = (lang: typeof languages[0]) => {
     setSelectedLanguage(lang);
-    console.log(`Language changed to ${lang.name}`);
+    toast({
+        title: "Language Switched",
+        description: `Language has been set to ${lang.name}.`,
+    });
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon">
-          <Globe className="h-5 w-5" />
+           <span className="text-xl">{selectedLanguage.flag}</span>
           <span className="sr-only">Change language</span>
         </Button>
       </DropdownMenuTrigger>
@@ -39,9 +43,10 @@ export default function LanguageSwitcher() {
           <DropdownMenuItem
             key={lang.code}
             onSelect={() => handleSelect(lang)}
+            className="cursor-pointer"
           >
-            <span className="mr-2">{lang.flag}</span>
-            {lang.name}
+            <span className="mr-2 text-xl">{lang.flag}</span>
+            <span>{lang.name}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

@@ -64,7 +64,7 @@ export default function ChatPage() {
     };
 
     useEffect(() => {
-        if (usersLoading || followingLoading || !usersSnapshot) return;
+        if (usersLoading || followingLoading || !usersSnapshot || selectedUser) return;
 
         const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
@@ -79,10 +79,12 @@ export default function ChatPage() {
         
         if (userToSelect) {
             setSelectedUser(userToSelect);
-            resetUnreadCount(userToSelect.id);
+            if (userToSelect.id !== 'group') {
+                resetUnreadCount(userToSelect.id);
+            }
         }
 
-    }, [initialUserId, usersLoading, followingLoading, isGroupChat, usersSnapshot, followedUsers, user]);
+    }, [initialUserId, usersLoading, followingLoading, isGroupChat, usersSnapshot, followedUsers, user, selectedUser]);
     
     const contactList = useMemo(() => {
         if (!usersSnapshot) return [];
@@ -124,7 +126,9 @@ export default function ChatPage() {
             router.push(`/chat?userId=${u.id}`);
         }
         setSelectedUser(u);
-        resetUnreadCount(u.id);
+        if (u.id !== 'group') {
+            resetUnreadCount(u.id);
+        }
     };
 
 
@@ -159,7 +163,7 @@ export default function ChatPage() {
                                      <AvatarFallback><Users/></AvatarFallback> :
                                      <>
                                         <AvatarImage src={u.avatar} />
-                                        <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                        <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>
                                      </>
                                     }
                                 </Avatar>
@@ -190,7 +194,15 @@ export default function ChatPage() {
                                 </Avatar>
                                 <div>
                                     <h2 className="text-lg font-semibold font-headline">{selectedUser.name}</h2>
-                                    {selectedUser.id !== 'group' && <p className="text-sm text-muted-foreground">Online</p>}
+                                    {selectedUser.id !== 'group' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                            </span>
+                                            <p className="text-xs text-muted-foreground">Online</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
