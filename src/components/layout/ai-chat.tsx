@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, X, Loader2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateIdeas } from "@/ai/flows/generate-ideas";
+import { assistantChat } from "@/ai/flows/assistant-chat";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface Message {
@@ -25,7 +25,7 @@ export default function AiChat() {
   useEffect(() => {
     if (isOpen) {
       setMessages([
-        { role: "bot", content: "Hello! I'm your family app assistant. How can I help you today? You can ask me how to use certain features." },
+        { role: "bot", content: "Hello! I'm your family app assistant. How can I help you today? You can ask me how to use certain features or for ideas to improve the app." },
       ]);
     }
   }, [isOpen]);
@@ -52,10 +52,8 @@ export default function AiChat() {
     setIsLoading(true);
 
     try {
-      // For this demo, we'll use the generateIdeas flow as a stand-in for a Q&A flow.
-      // In a real app, you'd create a dedicated flow for answering user questions.
-      const result = await generateIdeas({ topic: `Question about the app: ${input}` });
-      const botMessage: Message = { role: "bot", content: result.ideas.join("\n") };
+      const result = await assistantChat({ question: input });
+      const botMessage: Message = { role: "bot", content: result.response };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       const errorMessage: Message = {
