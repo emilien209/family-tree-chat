@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -15,32 +16,33 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCollection } from "react-firebase-hooks/firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, addDoc, serverTimestamp, orderBy, doc, updateDoc, where } from 'firebase/firestore';
 
 const ideaFormSchema = z.object({
     topic: z.string().min(5, { message: "Topic must be at least 5 characters." }),
 });
 
 const goalFormSchema = z.object({
-    goal: z.string().min(10, { message: "Goal must be at least 10 characters." }),
+    text: z.string().min(10, { message: "Goal must be at least 10 characters." }),
 });
 
 interface Goal {
-    id: number;
+    id: string;
     text: string;
     completed: boolean;
 }
-
-const initialGoals: Goal[] = [
-    { id: 1, text: "Save for a family vacation to the beach.", completed: false },
-    { id: 2, text: "Start a family book club and read one book per month.", completed: true },
-    { id: 3, text: "Volunteer together at a local charity once a quarter.", completed: false },
-];
 
 export default function GoalsPage() {
     const { toast } = useToast();
     const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [goals, setGoals] = useState<Goal[]>(initialGoals);
+    const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
+
+    const goalsRef = collection(db, "goals");
+    const q = query(goalsRef, orderBy("timestamp", "desc"));
+    const [goalsSnapshot, loading, error] = useCollection(q);
 
     const ideaForm = useForm<z.infer<typeof ideaFormSchema>>({
         resolver: zodResolver(ideaFormSchema),
@@ -52,7 +54,7 @@ export default function GoalsPage() {
     const goalForm = useForm<z.infer<typeof goalFormSchema>>({
         resolver: zodResolver(goalFormSchema),
         defaultValues: {
-            goal: "",
+            text: "",
         },
     });
 
@@ -74,24 +76,43 @@ export default function GoalsPage() {
         }
     }
 
-    function onGoalSubmit(values: z.infer<typeof goalFormSchema>) {
-        const newGoal: Goal = {
-            id: Date.now(),
-            text: values.goal,
-            completed: false,
-        };
-        setGoals([newGoal, ...goals]);
-        goalForm.reset();
-        toast({
-            title: "Goal Added!",
-            description: "A new family goal has been set.",
-        });
+    async function onGoalSubmit(values: z.infer<typeof goalFormSchema>) {
+        setIsSubmittingGoal(true);
+        try {
+             await addDoc(goalsRef, {
+                text: values.text,
+                completed: false,
+                timestamp: serverTimestamp(),
+            });
+            goalForm.reset();
+            toast({
+                title: "Goal Added!",
+                description: "A new family goal has been set.",
+            });
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not add goal. Please try again.",
+            });
+        } finally {
+            setIsSubmittingGoal(false);
+        }
     }
 
-    function toggleGoal(id: number) {
-        setGoals(goals.map(goal =>
-            goal.id === id ? { ...goal, completed: !goal.completed } : goal
-        ));
+    async function toggleGoal(id: string, completed: boolean) {
+        const goalRef = doc(db, "goals", id);
+        try {
+            await updateDoc(goalRef, { completed: !completed });
+        } catch(err) {
+            console.error(err);
+             toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not update goal status.",
+            });
+        }
     }
 
 
@@ -107,41 +128,58 @@ export default function GoalsPage() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1fr_420px]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Our 2024 Goals</CardTitle>
-                            <CardDescription>Here are the goals we're working towards as a family this year.</CardDescription>
+                            <CardTitle>Our Shared Goals</CardTitle>
+                            <CardDescription>Here are the goals we're working towards as a family.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <Form {...goalForm}>
                                 <form onSubmit={goalForm.handleSubmit(onGoalSubmit)} className="flex items-center gap-2 mb-4">
                                     <FormField
                                         control={goalForm.control}
-                                        name="goal"
+                                        name="text"
                                         render={({ field }) => (
                                         <FormItem className="flex-1">
                                             <FormControl>
-                                                <Input placeholder="Add a new goal..." {...field} />
+                                                <Input placeholder="Add a new goal..." {...field} disabled={isSubmittingGoal}/>
                                             </FormControl>
                                              <FormMessage />
                                         </FormItem>
                                         )}
                                     />
-                                    <Button type="submit"><PlusCircle className="mr-2 h-4 w-4" /> Add Goal</Button>
+                                    <Button type="submit" disabled={isSubmittingGoal}>
+                                        {isSubmittingGoal ? <Loader2 className="h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" />} 
+                                        {isSubmittingGoal ? 'Adding...' : 'Add Goal'}
+                                    </Button>
                                 </form>
                             </Form>
                             <Separator className="mb-4" />
                             <ScrollArea className="h-[400px]">
                                 <div className="space-y-4 pr-4">
-                                    {goals.map(goal => (
-                                        <div key={goal.id} className={`flex items-start gap-3 p-3 rounded-md transition-colors ${goal.completed ? 'bg-muted/50 text-muted-foreground' : 'bg-card'}`}>
-                                            <button onClick={() => toggleGoal(goal.id)}>
-                                                {goal.completed ? 
-                                                    <CheckCircle2 className="h-5 w-5 mt-0.5 text-primary" /> :
-                                                    <div className="h-5 w-5 mt-0.5 rounded-full border-2 border-primary flex-shrink-0" />
-                                                }
-                                            </button>
-                                            <p className={`flex-1 text-sm ${goal.completed ? 'line-through' : ''}`}>{goal.text}</p>
+                                    {loading && [...Array(3)].map((_, i) => (
+                                        <div key={i} className="flex items-start gap-3 p-3">
+                                            <Skeleton className="h-5 w-5 rounded-full mt-0.5" />
+                                            <Skeleton className="h-5 w-4/5" />
                                         </div>
                                     ))}
+                                    {goalsSnapshot?.docs.map(doc => {
+                                        const goal = { id: doc.id, ...doc.data() } as Goal;
+                                        return (
+                                            <div key={goal.id} className={`flex items-start gap-3 p-3 rounded-md transition-colors ${goal.completed ? 'bg-muted/50 text-muted-foreground' : 'bg-card'}`}>
+                                                <button onClick={() => toggleGoal(goal.id, goal.completed)}>
+                                                    {goal.completed ? 
+                                                        <CheckCircle2 className="h-5 w-5 mt-0.5 text-primary" /> :
+                                                        <div className="h-5 w-5 mt-0.5 rounded-full border-2 border-primary flex-shrink-0" />
+                                                    }
+                                                </button>
+                                                <p className={`flex-1 text-sm ${goal.completed ? 'line-through' : ''}`}>{goal.text}</p>
+                                            </div>
+                                        )
+                                    })}
+                                    {!loading && goalsSnapshot?.empty && (
+                                        <div className="text-center text-muted-foreground p-4">
+                                            <p>No family goals have been set yet.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </ScrollArea>
                         </CardContent>
@@ -217,3 +255,4 @@ export default function GoalsPage() {
         </div>
     );
 }
+
