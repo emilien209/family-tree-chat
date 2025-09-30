@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,27 @@ interface User {
   avatar?: string;
 }
 
+const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => (
+    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="relative w-full max-w-sm h-[90vh] bg-background rounded-lg overflow-hidden shadow-2xl">
+        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} layout="fill" objectFit="cover" />
+        <div className="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/50 to-transparent">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.avatar || `https://picsum.photos/seed/${user.id}/40/40`} />
+              <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+            <p className="text-white font-semibold text-sm">{user.name}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-white" onClick={onClose}>
+          <X />
+        </Button>
+      </div>
+    </div>
+);
+
+
 export default function FeedPage() {
   const { toast } = useToast();
   const user = auth.currentUser;
@@ -55,6 +76,8 @@ export default function FeedPage() {
   const [isPosting, setIsPosting] = useState(false);
   const [postImage, setPostImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [following, setFollowing] = useState<string[]>([]);
+  const [selectedStoryUser, setSelectedStoryUser] = useState<User | null>(null);
 
 
   const postsRef = collection(db, "posts");
@@ -63,6 +86,15 @@ export default function FeedPage() {
   
   const usersRef = collection(db, "users");
   const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
+
+  useEffect(() => {
+    if (!user) return;
+    const followingRef = collection(db, "users", user.uid, "following");
+    const unsub = onSnapshot(followingRef, (snapshot) => {
+        setFollowing(snapshot.docs.map(doc => doc.id));
+    });
+    return unsub;
+  }, [user]);
 
   const stories = useMemo(() => {
     if (!usersSnapshot) return [];
@@ -74,13 +106,13 @@ export default function FeedPage() {
   }, [usersSnapshot, user]);
 
   const suggestedUsers = useMemo(() => {
-    if (!usersSnapshot) return [];
-    // Show up to 5 suggested users, excluding the current user
+    if (!usersSnapshot || !user) return [];
+    // Suggest users that the current user is not already following
     return usersSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as User))
-        .filter(u => u.id !== user?.uid)
+        .filter(u => u.id !== user.uid && !following.includes(u.id))
         .slice(0, 5);
-  }, [usersSnapshot, user]);
+  }, [usersSnapshot, user, following]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,7 +202,38 @@ export default function FeedPage() {
       .filter(post => post.timestamp && post.timestamp.toDate() > twentyFourHoursAgo);
   }, [postsSnapshot]);
 
+    const handleFollow = async (targetUserId: string) => {
+        if (!user) return;
+        const currentUserRef = doc(db, 'users', user.uid);
+        const targetUserRef = doc(db, 'users', targetUserId);
+        const followingRef = doc(currentUserRef, 'following', targetUserId);
+        const followersRef = doc(targetUserRef, 'followers', user.uid);
+        
+        try {
+            const isFollowing = following.includes(targetUserId);
+
+            if (isFollowing) {
+                // Unfollow
+                await deleteDoc(followingRef);
+                await deleteDoc(followersRef);
+            } else {
+                // Follow
+                await setDoc(followingRef, { timestamp: serverTimestamp() });
+                await setDoc(followersRef, { timestamp: serverTimestamp() });
+            }
+        } catch (error) {
+            console.error("Error following/unfollowing user:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not update follow status.',
+            });
+        }
+    };
+
   return (
+    <>
+    {selectedStoryUser && <StoryViewer user={selectedStoryUser} onClose={() => setSelectedStoryUser(null)} />}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-4 md:p-6 max-w-6xl mx-auto">
         <div className="md:col-span-2 space-y-6">
             {/* Stories */}
@@ -182,7 +245,7 @@ export default function FeedPage() {
                     </div>
                 ))}
                 {stories.map(story => (
-                    <div key={story.id} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
+                    <button key={story.id} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px] text-left" onClick={() => setSelectedStoryUser(story)}>
                         <div className="relative w-[60px] h-[60px]">
                           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
                            <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
@@ -191,7 +254,7 @@ export default function FeedPage() {
                             </Avatar>
                         </div>
                         <p className="text-xs truncate w-full text-center">{story.name}</p>
-                    </div>
+                    </button>
                 ))}
             </div>
 
@@ -337,7 +400,14 @@ export default function FeedPage() {
                                      <p className="text-xs text-muted-foreground">Suggested for you</p>
                                  </div>
                              </div>
-                             <Button variant="ghost" size="sm" className="text-primary text-xs">Follow</Button>
+                              <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`text-xs ${following.includes(suggUser.id) ? '' : 'text-primary'}`}
+                                    onClick={() => handleFollow(suggUser.id)}
+                                >
+                                    {following.includes(suggUser.id) ? "Following" : "Follow"}
+                                </Button>
                          </div>
                      ))}
                  </CardContent>
@@ -354,10 +424,13 @@ export default function FeedPage() {
             </footer>
         </div>
     </div>
+    </>
   )
 
     
 
 
+
+    
 
     
