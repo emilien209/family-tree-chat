@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
@@ -12,7 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subHours } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -131,7 +131,13 @@ export default function FeedPage() {
     }
   };
   
-  const posts = postsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const posts = useMemo(() => {
+    if (!postsSnapshot) return [];
+    const twentyFourHoursAgo = subHours(new Date(), 24);
+    return postsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(post => post.timestamp && post.timestamp.toDate() > twentyFourHoursAgo);
+  }, [postsSnapshot]);
 
   return (
     <div className="flex flex-col h-full">
@@ -203,7 +209,16 @@ export default function FeedPage() {
             </Alert>
           )}
 
-          {!loading && posts?.map((post: any) => (
+          {!loading && posts.length === 0 && (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                <p>No posts in the last 24 hours.</p>
+                <p className="text-sm">Be the first to share something!</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loading && posts.map((post: any) => (
             <Card key={post.id}>
               <CardHeader>
                 <div className="flex items-center gap-3">

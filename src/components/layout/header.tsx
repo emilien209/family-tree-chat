@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Group } from "lucide-react"
 import { cn } from "@/lib/utils"
+import LanguageSwitcher from "./language-switcher"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -30,6 +31,7 @@ export default function Header() {
           <span className="font-bold text-lg">Rumenera Connect</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
+          <LanguageSwitcher />
           <Button variant="ghost" asChild>
             <Link href="/login">Sign In</Link>
           </Button>
