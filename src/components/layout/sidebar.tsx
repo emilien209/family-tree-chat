@@ -11,6 +11,13 @@ import {
   Newspaper,
   Target,
   Users,
+  Home,
+  Search,
+  Compass,
+  Clapperboard,
+  Heart,
+  PlusSquare,
+  Menu,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -26,13 +33,21 @@ import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
-const navItems = [
-  { href: "/chat", icon: MessageSquare, label: "Chat", notifications: 3 },
-  { href: "/feed", icon: Newspaper, label: "Family Feed", notifications: 0 },
-  { href: "/members", icon: Users, label: "Members", notifications: 0 },
+const mainNavItems = [
+  { href: "/feed", icon: Home, label: "Home" },
+  { href: "/search", icon: Search, label: "Search" },
+  { href: "/explore", icon: Compass, label: "Explore" },
+  { href: "/reels", icon: Clapperboard, label: "Reels" },
+  { href: "/chat", icon: MessageSquare, label: "Messages", notifications: 3 },
+  { href: "/notifications", icon: Heart, label: "Notifications" },
+  { href: "/create", icon: PlusSquare, label: "Create" },
+];
+
+const secondaryNavItems = [
   { href: "/events", icon: Calendar, label: "Events", notifications: 1 },
   { href: "/goals", icon: Target, label: "Family Goals", notifications: 0 },
-];
+  { href: "/members", icon: Users, label: "Members", notifications: 0 },
+]
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -58,26 +73,28 @@ export default function Sidebar() {
     }
   }
 
+  const allNavItems = [...mainNavItems, ...secondaryNavItems];
+
   return (
-    <aside className="hidden w-64 flex-col border-r bg-card p-4 md:flex">
+    <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
       <div className="flex items-center gap-2 pb-4 border-b mb-4">
-        <Group className="h-8 w-8 text-primary" />
-        <h1 className="text-xl font-bold font-headline">Rumenera</h1>
+        {/* <Group className="h-8 w-8 text-primary" /> */}
+        <h1 className="text-2xl font-bold font-serif">Rumenera</h1>
       </div>
 
       <nav className="flex-1 space-y-2">
-        {navItems.map((item) => (
+        {[...mainNavItems, ...secondaryNavItems].map((item) => (
           <Button
             key={item.label}
             variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-            className="w-full justify-start"
+            className="w-full justify-start text-base"
             asChild
           >
             <Link href={item.href}>
-              <item.icon className="mr-2 h-4 w-4" />
+              <item.icon className="mr-4 h-6 w-6" />
               {item.label}
               {item.notifications > 0 && (
-                <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs animation-bounce-subtle">
+                <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white text-xs">
                   {item.notifications}
                 </span>
               )}
@@ -87,36 +104,18 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-2">
-        <div className="border-t -mx-4 my-2"></div>
-        {user ? (
-           <div className="flex items-center gap-3">
-              <Avatar>
-                  <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} />
-                  <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col overflow-hidden">
-                  <span className="font-semibold text-sm truncate">{user.displayName || 'User'}</span>
-                  <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-              </div>
-          </div>
-        ) : (
-           <div className="flex items-center gap-3">
-              <Avatar>
-                  <AvatarFallback>U</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                  <span className="font-semibold text-sm">Not logged in</span>
-              </div>
-          </div>
-        )}
-        <Button variant="ghost" className="w-full justify-start" asChild>
+        <Button variant="ghost" className="w-full justify-start text-base" asChild>
             <Link href="/profile">
-                <User className="mr-2 h-4 w-4" /> Profile
+                <Avatar className="mr-4 h-6 w-6">
+                  <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} />
+                  <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+               Profile
             </Link>
         </Button>
-        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Log out
+        <Button variant="ghost" className="w-full justify-start text-base" onClick={handleLogout}>
+          <Menu className="mr-4 h-6 w-6" />
+          More
         </Button>
       </div>
     </aside>

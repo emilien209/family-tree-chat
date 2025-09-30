@@ -10,15 +10,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
-import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X } from "lucide-react"
+import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X, MoreHorizontal, Send } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow, subHours } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { Input } from "@/components/ui/input";
 
 const PostSkeleton = () => (
-  <Card>
+  <Card className="bg-background border-border">
     <CardHeader>
       <div className="flex items-center gap-3">
         <Skeleton className="h-10 w-10 rounded-full" />
@@ -28,16 +29,28 @@ const PostSkeleton = () => (
         </div>
       </div>
     </CardHeader>
-    <CardContent>
-      <Skeleton className="h-4 w-full mb-2" />
-      <Skeleton className="h-4 w-4/5" />
-    </CardContent>
-    <CardFooter>
-      <Skeleton className="h-8 w-20" />
-      <Skeleton className="h-8 w-24 ml-4" />
+    <Skeleton className="h-[450px] w-full" />
+    <CardFooter className="flex flex-col items-start gap-2 p-4">
+       <Skeleton className="h-4 w-3/4" />
+       <Skeleton className="h-4 w-1/2" />
+       <div className="flex gap-2 mt-2">
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="h-8 w-8" />
+       </div>
     </CardFooter>
   </Card>
 );
+
+const stories = [
+    { name: "_jae.t.i.t.i...", image: "https://picsum.photos/seed/1/80/80" },
+    { name: "ka.ra.bo_13", image: "https://picsum.photos/seed/2/80/80" },
+    { name: "ayiflair", image: "https://picsum.photos/seed/3/80/80" },
+    { name: "oliparfect", image: "https://picsum.photos/seed/4/80/80" },
+    { name: "yasin_myy...", image: "https://picsum.photos/seed/5/80/80" },
+    { name: "rocky_kim...", image: "https://picsum.photos/seed/6/80/80" },
+    { name: "user7", image: "https://picsum.photos/seed/7/80/80" },
+    { name: "user8", image: "https://picsum.photos/seed/8/80/80" },
+]
 
 export default function FeedPage() {
   const { toast } = useToast();
@@ -92,7 +105,7 @@ export default function FeedPage() {
         content: postContent,
         imageUrl: imageUrl,
         likes: 0,
-        comments: 0, // Placeholder
+        comments: [], // Initialize comments as an empty array
         timestamp: serverTimestamp(),
       });
       setPostContent("");
@@ -140,121 +153,173 @@ export default function FeedPage() {
   }, [postsSnapshot]);
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="flex items-center justify-between h-16 shrink-0 border-b px-6">
-        <h2 className="text-xl font-semibold font-headline">Family Feed</h2>
-      </header>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <Card>
-            <CardHeader>
-                <CardTitle>Create a post</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div className="flex items-start gap-4">
-                     <Avatar>
-                        <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} />
-                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-2">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-4 md:p-6 max-w-6xl mx-auto">
+        <div className="md:col-span-2 space-y-6">
+            {/* Stories */}
+            <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
+                {stories.map(story => (
+                    <div key={story.name} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
+                        <div className="relative w-[60px] h-[60px]">
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
+                           <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
+                                <AvatarImage src={story.image} />
+                                <AvatarFallback>{story.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        </div>
+                        <p className="text-xs truncate w-full text-center">{story.name}</p>
+                    </div>
+                ))}
+            </div>
+
+             {/* Create Post */}
+            <Card className="bg-card border-border">
+                <CardHeader>
+                    <div className="flex items-center gap-4">
+                         <Avatar>
+                            <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} />
+                            <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                        </Avatar>
                         <Textarea 
-                        placeholder="What's on your mind?" 
-                        className="min-h-[60px]" 
+                        placeholder={`What's on your mind, ${user?.displayName?.split(' ')[0] || 'User'}?`} 
+                        className="min-h-[40px] bg-transparent border-none focus-visible:ring-0 resize-none" 
                         value={postContent}
                         onChange={(e) => setPostContent(e.target.value)}
                         disabled={isPosting}
                         />
-                        {postImage && (
-                            <div className="relative w-fit">
-                                <Image src={postImage} alt="Preview" width={100} height={100} className="rounded-md object-cover" />
-                                <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                    {postImage && (
+                        <div className="relative w-fit mx-auto mb-4">
+                            <Image src={postImage} alt="Preview" width={400} height={400} className="rounded-md object-cover max-h-[300px]" />
+                            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                         <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isPosting}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Photo
+                        </Button>
+                        <Button onClick={handleCreatePost} disabled={isPosting || (postContent.trim() === '' && !postImage)}>
+                        {isPosting ? <Loader2 className="animate-spin" /> : "Post"}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+
+            {/* Feed */}
+            {loading && (
+                <div className="space-y-6">
+                <PostSkeleton />
+                <PostSkeleton />
+                </div>
+            )}
+
+            {error && (
+                <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error Loading Feed</AlertTitle>
+                <AlertDescription>Could not load posts. Please check your connection and try again.</AlertDescription>
+                </Alert>
+            )}
+
+            {!loading && posts.length === 0 && (
+                <Card className="bg-card border-border">
+                <CardContent className="p-6 text-center text-muted-foreground">
+                    <p>No posts in the last 24 hours.</p>
+                    <p className="text-sm">Be the first to share something!</p>
+                </CardContent>
+                </Card>
+            )}
+
+            {!loading && posts.map((post: any) => (
+                <Card key={post.id} className="bg-card border-border overflow-hidden">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Avatar>
+                                <AvatarImage src={post.author.avatar} />
+                                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold text-sm">{post.author.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                                </p>
                             </div>
-                        )}
+                        </div>
+                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
                     </div>
-                </div>
-                 <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*"
-                />
-                <div className="flex justify-between items-center">
-                     <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isPosting}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Photo
-                    </Button>
-                    <Button onClick={handleCreatePost} disabled={isPosting || (postContent.trim() === '' && !postImage)}>
-                      {isPosting ? <Loader2 className="animate-spin" /> : "Post"}
-                    </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {loading && (
-             <div className="space-y-6">
-              <PostSkeleton />
-              <PostSkeleton />
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Error Loading Feed</AlertTitle>
-              <AlertDescription>Could not load posts. Please check your connection and try again.</AlertDescription>
-            </Alert>
-          )}
-
-          {!loading && posts.length === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                <p>No posts in the last 24 hours.</p>
-                <p className="text-sm">Be the first to share something!</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {!loading && posts.map((post: any) => (
-            <Card key={post.id}>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                    <Avatar>
-                        <AvatarImage src={post.author.avatar} />
-                        <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="font-semibold">{post.author.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
-                        </p>
+                </CardHeader>
+                
+                {post.imageUrl && (
+                    <CardContent className="p-0">
+                        <Image src={post.imageUrl} alt="Post image" width={700} height={700} className="w-full object-cover aspect-square" />
+                    </CardContent>
+                )}
+                <CardFooter className="flex flex-col items-start gap-2 p-4">
+                     <div className="flex gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleLikePost(post.id)}>
+                            <Heart className="h-6 w-6" />
+                        </Button>
+                         <Button variant="ghost" size="icon">
+                            <MessageSquare className="h-6 w-6" />
+                        </Button>
+                     </div>
+                     <p className="font-semibold text-sm">{post.likes} likes</p>
+                    {post.content && <p className="text-sm"><span className="font-semibold mr-1">{post.author.name}</span>{post.content}</p>}
+                    <p className="text-xs text-muted-foreground cursor-pointer hover:underline">View all {post.comments?.length || 0} comments</p>
+                     <div className="w-full flex items-center gap-2 pt-2">
+                        <Input placeholder="Add a comment..." className="bg-transparent border-none text-sm focus-visible:ring-0" />
+                        <Button variant="ghost" size="sm">Post</Button>
                     </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {post.content && <p className="whitespace-pre-wrap">{post.content}</p>}
-                 {post.imageUrl && (
-                    <div className="mt-4 -mx-6 md:mx-0">
-                        <Image src={post.imageUrl} alt="Post image" width={600} height={400} className="w-full object-cover" />
-                    </div>
-                 )}
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={() => handleLikePost(post.id)}>
-                    <Heart className="h-4 w-4" /> {post.likes} Likes
-                </Button>
-                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" /> {post.comments} Comments
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-
+                </CardFooter>
+                </Card>
+            ))}
         </div>
-      </div>
+        <div className="hidden md:block space-y-6">
+             <Card className="bg-card border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">Suggested for you</CardTitle>
+                </CardHeader>
+                 <CardContent className="space-y-4">
+                     {[...Array(5)].map((_, i) => (
+                         <div key={i} className="flex items-center justify-between">
+                             <div className="flex items-center gap-3">
+                                 <Avatar className="h-10 w-10">
+                                     <AvatarImage src={`https://picsum.photos/seed/sugg-${i}/40/40`} />
+                                     <AvatarFallback>U</AvatarFallback>
+                                 </Avatar>
+                                 <div>
+                                     <p className="font-semibold text-sm">user_{i+1}</p>
+                                     <p className="text-xs text-muted-foreground">Suggested for you</p>
+                                 </div>
+                             </div>
+                             <Button variant="ghost" size="sm" className="text-primary text-xs">Follow</Button>
+                         </div>
+                     ))}
+                 </CardContent>
+            </Card>
+             <footer className="text-xs text-muted-foreground space-x-2">
+                <span>About</span>
+                <span>Help</span>
+                <span>Press</span>
+                <span>API</span>
+                <span>Jobs</span>
+                <span>Privacy</span>
+                <span>Terms</span>
+                <p className="mt-4">&copy; 2024 Rumenera Connect</p>
+            </footer>
+        </div>
     </div>
   )
 }
