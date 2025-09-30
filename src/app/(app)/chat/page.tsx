@@ -1,7 +1,7 @@
 "use client";
 
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, onSnapshot, doc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, orderBy, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import MessageInput from "@/components/chat/message-input";
 import MessageList from "@/components/chat/message-list";
@@ -57,25 +57,32 @@ export default function ChatPage() {
     }, [usersSnapshot, following]);
 
 
+    const resetUnreadCount = async (chatPartnerId: string) => {
+        if (!user) return;
+        const unreadCountRef = doc(db, 'users', user.uid, 'unreadCounts', chatPartnerId);
+        await setDoc(unreadCountRef, { count: 0 });
+    };
+
     useEffect(() => {
         if (usersLoading || followingLoading || !usersSnapshot) return;
 
-        if (isGroupChat) {
-             setSelectedUser({ id: 'group', name: 'Family Group Chat' });
-             return;
-        }
-
         const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
-        if (initialUserId) {
-            const userToSelect = allUsers.find(u => u.id === initialUserId);
-            if (userToSelect) {
-                setSelectedUser(userToSelect);
-            }
+        let userToSelect: User | null = null;
+        if (isGroupChat) {
+             userToSelect = { id: 'group', name: 'Family Group Chat' };
+        } else if (initialUserId) {
+            userToSelect = allUsers.find(u => u.id === initialUserId) || null;
         } else if (followedUsers.length > 0) {
-            setSelectedUser(followedUsers[0]);
+            userToSelect = followedUsers[0];
         }
-    }, [initialUserId, usersLoading, followingLoading, isGroupChat, usersSnapshot, followedUsers]);
+        
+        if (userToSelect) {
+            setSelectedUser(userToSelect);
+            resetUnreadCount(userToSelect.id);
+        }
+
+    }, [initialUserId, usersLoading, followingLoading, isGroupChat, usersSnapshot, followedUsers, user]);
     
     const contactList = useMemo(() => {
         if (!usersSnapshot) return [];
@@ -110,6 +117,16 @@ export default function ChatPage() {
         return getPrivateChatId(user.uid, selectedUser.id);
     }, [user, selectedUser]);
 
+    const handleSelectContact = (u: User) => {
+        if (u.id === 'group') {
+            router.push('/chat?group=true');
+        } else {
+            router.push(`/chat?userId=${u.id}`);
+        }
+        setSelectedUser(u);
+        resetUnreadCount(u.id);
+    };
+
 
     return (
         <div className="flex h-screen bg-background">
@@ -135,14 +152,7 @@ export default function ChatPage() {
                            <button 
                             key={u.id} 
                             className={`w-full text-left p-3 flex items-center gap-3 rounded-lg transition-colors ${selectedUser?.id === u.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
-                            onClick={() => {
-                                if (u.id === 'group') {
-                                    router.push('/chat?group=true');
-                                } else {
-                                    router.push(`/chat?userId=${u.id}`);
-                                }
-                                setSelectedUser(u)
-                            }}
+                            onClick={() => handleSelectContact(u)}
                            >
                                 <Avatar className="h-10 w-10">
                                     {u.id === 'group' ? 
@@ -210,7 +220,7 @@ export default function ChatPage() {
                             <MessageList chatId={chatId} />
                         </div>
                         <div className="border-t p-4 bg-background">
-                            <MessageInput chatId={chatId} />
+                            <MessageInput chatId={chatId} otherUserId={selectedUser.id !== 'group' ? selectedUser.id : null}/>
                         </div>
                     </>
                 ) : (

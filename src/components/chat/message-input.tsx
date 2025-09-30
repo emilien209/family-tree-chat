@@ -6,20 +6,51 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, runTransaction, getDocs } from "firebase/firestore";
 
 interface MessageInputProps {
     chatId?: string | null;
+    otherUserId?: string | null;
 }
 
-export default function MessageInput({ chatId }: MessageInputProps) {
+export default function MessageInput({ chatId, otherUserId }: MessageInputProps) {
     const [message, setMessage] = useState("");
     const { toast } = useToast();
+    const currentUser = auth.currentUser;
+
+    const incrementUnreadCount = async () => {
+        if (!chatId || !currentUser) return;
+        
+        if (chatId === 'group') {
+             // For group chat, increment unread count for all other users
+             const usersRef = collection(db, 'users');
+             const usersSnapshot = await getDocs(usersRef);
+             usersSnapshot.forEach(userDoc => {
+                 if (userDoc.id !== currentUser.uid) {
+                     const unreadCountRef = doc(db, 'users', userDoc.id, 'unreadCounts', 'group');
+                     runTransaction(db, async (transaction) => {
+                         const unreadDoc = await transaction.get(unreadCountRef);
+                         const newCount = (unreadDoc.data()?.count || 0) + 1;
+                         transaction.set(unreadCountRef, { count: newCount });
+                     });
+                 }
+             });
+
+        } else if (otherUserId) {
+            // For private chat, increment for the other user
+            const unreadCountRef = doc(db, 'users', otherUserId, 'unreadCounts', currentUser.uid);
+            await runTransaction(db, async (transaction) => {
+                const unreadDoc = await transaction.get(unreadCountRef);
+                const newCount = (unreadDoc.data()?.count || 0) + 1;
+                transaction.set(unreadCountRef, { count: newCount });
+            });
+        }
+    };
+
 
     const sendMessage = async () => {
-        if (message.trim() === "" || !auth.currentUser || !chatId) return;
+        if (message.trim() === "" || !currentUser || !chatId) return;
 
-        // Determine if it's a private chat or group chat
         const collectionPath = chatId === 'group' 
             ? `chats/group/messages` 
             : `privateChats/${chatId}/messages`;
@@ -29,11 +60,12 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                 text: message,
                 timestamp: serverTimestamp(),
                 user: {
-                    name: auth.currentUser.displayName || "Anonymous",
-                    avatar: auth.currentUser.photoURL,
-                    uid: auth.currentUser.uid,
+                    name: currentUser.displayName || "Anonymous",
+                    avatar: currentUser.photoURL,
+                    uid: currentUser.uid,
                 },
             });
+            await incrementUnreadCount();
             setMessage("");
         } catch (error) {
             console.error("Error sending message: ", error);

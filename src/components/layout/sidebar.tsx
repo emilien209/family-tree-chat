@@ -18,24 +18,26 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import { auth } from "@/lib/firebase"
+import { auth, db } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
+import { collection, query, onSnapshot, getDocs, doc } from 'firebase/firestore';
+
 
 const mainNavItems = [
   { href: "/feed", icon: Home, label: "Home" },
   { href: "/search", icon: Search, label: "Search" },
   { href: "/reels", icon: Clapperboard, label: "Reels" },
-  { href: "/chat", icon: MessageSquare, label: "Messages", notifications: 0 },
-  { href: "/notifications", icon: Heart, label: "Notifications", notifications: 0 },
+  { href: "/chat", icon: MessageSquare, label: "Messages" },
+  { href: "/notifications", icon: Heart, label: "Notifications" },
   { href: "/create", icon: PlusSquare, label: "Create" },
 ];
 
 const secondaryNavItems = [
-  { href: "/events", icon: Calendar, label: "Events", notifications: 0 },
-  { href: "/goals", icon: Target, label: "Family Goals", notifications: 0 },
-  { href: "/members", icon: Users, label: "Members", notifications: 0 },
+  { href: "/events", icon: Calendar, label: "Events" },
+  { href: "/goals", icon: Target, label: "Family Goals" },
+  { href: "/members", icon: Users, label: "Members" },
 ]
 
 export default function Sidebar() {
@@ -43,6 +45,7 @@ export default function Sidebar() {
   const router = useRouter()
   const { toast } = useToast()
   const [user, setUser] = useState(auth.currentUser);
+  const [messageNotifications, setMessageNotifications] = useState(0);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(newUser => {
@@ -50,6 +53,19 @@ export default function Sidebar() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const unreadCountsRef = collection(db, 'users', user.uid, 'unreadCounts');
+    const unsubscribe = onSnapshot(unreadCountsRef, (snapshot) => {
+        let totalUnread = 0;
+        snapshot.forEach(doc => {
+            totalUnread += doc.data().count || 0;
+        });
+        setMessageNotifications(totalUnread);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -76,7 +92,9 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1">
-        {mainNavItems.map((item) => (
+        {mainNavItems.map((item) => {
+            const notifications = item.href === '/chat' ? messageNotifications : 0;
+            return (
           <Button
             key={item.label}
             variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
@@ -86,14 +104,14 @@ export default function Sidebar() {
             <Link href={item.href}>
               <item.icon className="mr-4 h-6 w-6" />
               {item.label}
-              {item.notifications > 0 && (
+              {notifications > 0 && (
                 <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white text-xs">
-                  {item.notifications}
+                  {notifications}
                 </span>
               )}
             </Link>
           </Button>
-        ))}
+        )})}
          <Button
             variant={pathname.startsWith('/profile') ? "secondary" : "ghost"}
             className="w-full justify-start text-base"
@@ -123,11 +141,6 @@ export default function Sidebar() {
                 <Link href={item.href}>
                 <item.icon className="mr-4 h-6 w-6" />
                 {item.label}
-                {item.notifications > 0 && (
-                    <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white text-xs">
-                    {item.notifications}
-                    </span>
-                )}
                 </Link>
             </Button>
             ))}
