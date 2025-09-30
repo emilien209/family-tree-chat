@@ -103,7 +103,7 @@ body {
     height: 2px;
     background: #fff;
     border-radius: 50%;
-    animation: move 150s linear infinite;
+    animation: move 15s linear infinite;
     opacity: 0;
   }
   
