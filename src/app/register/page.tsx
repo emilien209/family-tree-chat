@@ -6,8 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 
 
@@ -67,8 +68,18 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, {
+      const user = userCredential.user;
+      
+      await updateProfile(user, {
         displayName: values.fullName,
+      });
+
+      // Save user info to Firestore 'users' collection
+      await setDoc(doc(db, "users", user.uid), {
+        name: values.fullName,
+        email: user.email,
+        uid: user.uid,
+        avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`
       });
 
       toast({
