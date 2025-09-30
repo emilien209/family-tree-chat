@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import {
   Home,
   Search,
-  Compass,
   Clapperboard,
   MessageSquare,
   Heart,
@@ -27,7 +26,6 @@ import { useEffect, useState } from "react"
 const mainNavItems = [
   { href: "/feed", icon: Home, label: "Home" },
   { href: "/search", icon: Search, label: "Search" },
-  { href: "/explore", icon: Compass, label: "Explore" },
   { href: "/reels", icon: Clapperboard, label: "Reels" },
   { href: "/chat", icon: MessageSquare, label: "Messages", notifications: 0 },
   { href: "/notifications", icon: Heart, label: "Notifications", notifications: 0 },
