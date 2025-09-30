@@ -19,6 +19,7 @@ export default {
       fontFamily: {
         body: ['"PT Sans"', 'sans-serif'],
         headline: ['"PT Sans"', 'sans-serif'],
+        serif: ['"Instrument Serif"', 'serif'],
         code: ['monospace'],
       },
       colors: {
