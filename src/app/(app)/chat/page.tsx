@@ -1,7 +1,7 @@
 "use client";
 
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import MessageInput from "@/components/chat/message-input";
 import MessageList from "@/components/chat/message-list";
@@ -11,7 +11,8 @@ import { Phone, Video, Users, Search, MessageSquarePlus } from "lucide-react";
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface User {
   id: string;
@@ -22,21 +23,76 @@ interface User {
 
 export default function ChatPage() {
     const user = auth.currentUser;
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const initialUserId = searchParams.get('userId');
+
     const usersRef = collection(db, "users");
-    const [usersSnapshot, loading, error] = useCollection(usersRef);
+    const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [following, setFollowing] = useState<string[]>([]);
+    const [followingLoading, setFollowingLoading] = useState(true);
 
-    const otherUsers = usersSnapshot?.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as User))
-        .filter(u => u.id !== user?.uid);
+     useEffect(() => {
+        if (!user) return;
+        const followingRef = collection(db, "users", user.uid, "following");
+        const unsub = onSnapshot(followingRef, (snapshot) => {
+            setFollowing(snapshot.docs.map(doc => doc.id));
+            setFollowingLoading(false);
+        }, (err) => {
+            console.error(err);
+            setFollowingLoading(false);
+        });
+        return unsub;
+    }, [user]);
 
-    // Select the first user by default
-    useState(() => {
-        if (!selectedUser && otherUsers && otherUsers.length > 0) {
-            setSelectedUser(otherUsers[0]);
+    const followedUsers = useMemo(() => {
+        if (!usersSnapshot) return [];
+        return usersSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as User))
+            .filter(u => following.includes(u.id));
+    }, [usersSnapshot, following]);
+
+
+    useEffect(() => {
+        if (usersLoading || followingLoading) return;
+        
+        const allUsers = usersSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)) || [];
+
+        if (initialUserId) {
+            const userToSelect = allUsers.find(u => u.id === initialUserId);
+            if (userToSelect) {
+                setSelectedUser(userToSelect);
+                return;
+            }
         }
-    });
+        
+        if (!selectedUser && followedUsers.length > 0) {
+            setSelectedUser(followedUsers[0]);
+        }
+    }, [initialUserId, usersSnapshot, followedUsers, selectedUser, usersLoading, followingLoading]);
+    
+    const contactList = useMemo(() => {
+        if (!usersSnapshot) return [];
+        const allUsersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as User]));
+        const contacts = new Set<User>();
+
+        // Add followed users
+        followedUsers.forEach(u => contacts.add(u));
+
+        // If an initial user is selected via URL, add them to the list if not already present
+        if (initialUserId) {
+            const initialUser = allUsersMap.get(initialUserId);
+            if (initialUser) {
+                contacts.add(initialUser);
+            }
+        }
+
+        return Array.from(contacts);
+
+    }, [usersSnapshot, followedUsers, initialUserId]);
+
 
     return (
         <div className="flex h-screen bg-background">
@@ -55,9 +111,17 @@ export default function ChatPage() {
                 </header>
                 <ScrollArea className="flex-1">
                    <nav className="p-2">
-                       {loading && <p className="p-4 text-sm text-muted-foreground">Loading contacts...</p>}
-                       {error && <p className="p-4 text-sm text-destructive">Error loading contacts.</p>}
-                       {otherUsers?.map(u => (
+                       {(usersLoading || followingLoading) && <p className="p-4 text-sm text-muted-foreground">Loading contacts...</p>}
+                       {usersError && <p className="p-4 text-sm text-destructive">Error loading contacts.</p>}
+                       
+                       {!usersLoading && !followingLoading && contactList.length === 0 && (
+                            <div className="p-4 text-center text-muted-foreground">
+                                <p>You are not following anyone yet.</p>
+                                <Button variant="link" asChild><Link href="/members">Find members to follow</Link></Button>
+                            </div>
+                        )}
+
+                       {contactList.map(u => (
                            <button 
                             key={u.id} 
                             className={`w-full text-left p-3 flex items-center gap-3 rounded-lg transition-colors ${selectedUser?.id === u.id ? 'bg-muted' : 'hover:bg-muted/50'}`}

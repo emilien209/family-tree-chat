@@ -10,6 +10,7 @@ import { Users, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
@@ -36,6 +37,7 @@ export default function MembersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const q = query(collection(db, 'users'));
@@ -55,6 +57,10 @@ export default function MembersPage() {
 
     return () => unsubscribe();
   }, []);
+
+  const handleSendMessage = (userId: string) => {
+    router.push(`/chat?userId=${userId}`);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -93,7 +99,7 @@ export default function MembersPage() {
                             <p className="font-semibold">{user.name}</p>
                             <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => handleSendMessage(user.id)}>
                             <Mail className="h-5 w-5" />
                             <span className="sr-only">Send Message</span>
                         </Button>
