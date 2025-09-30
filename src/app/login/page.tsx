@@ -82,7 +82,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-             <Image src="/logo.png" alt="Family Chat Logo" width={48} height={48} />
+             <Image src="/logo.png" alt="Family Tree Chat Logo" width={64} height={64} />
           </div>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>

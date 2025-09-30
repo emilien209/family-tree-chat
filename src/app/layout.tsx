@@ -5,7 +5,7 @@ import './globals.css';
 import Starfield from '@/components/layout/starfield';
 
 export const metadata: Metadata = {
-  title: 'Family Chat',
+  title: 'Family Tree Chat',
   description: 'Your family, connected.',
 };
 

@@ -27,8 +27,8 @@ export default function Header() {
     )}>
       <div className="container flex h-16 items-center px-4 md:px-6">
         <Link href="/" className="mr-6 flex items-center gap-2" prefetch={false}>
-          <Image src="/logo.png" alt="Family Chat Logo" width={28} height={28} className="h-7 w-7" />
-          <span className="font-bold text-lg">Family Chat</span>
+          <Image src="/logo.png" alt="Family Tree Chat Logo" width={32} height={32} className="h-8 w-8" />
+          <span className="font-bold text-lg">Family Tree Chat</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
           <LanguageSwitcher />

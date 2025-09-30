@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
 import { collection, query, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import Image from "next/image"
 
 
 const mainNavItems = [
@@ -88,7 +89,8 @@ export default function Sidebar() {
   return (
     <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
       <div className="flex items-center gap-2 pb-4 border-b mb-4">
-        <h1 className="text-2xl font-bold font-serif">Family Chat</h1>
+        <Image src="/logo.png" alt="Family Tree Chat Logo" width={40} height={40} />
+        <h1 className="text-2xl font-bold font-serif">Family Tree Chat</h1>
       </div>
 
       <nav className="flex-1 space-y-1">
