@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Kimenyi Connect',
+  title: 'Rumenera Family Tree',
   description: 'Your family, connected.',
 };
 

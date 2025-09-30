@@ -28,7 +28,7 @@ export default function Header() {
       <div className="container flex h-16 items-center px-4 md:px-6">
         <Link href="/" className="mr-6 flex items-center gap-2" prefetch={false}>
           <Group className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">Kimenyi Connect</span>
+          <span className="font-bold text-lg">Rumenera Family Tree</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
           <LanguageSwitcher />

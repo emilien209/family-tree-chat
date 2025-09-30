@@ -317,10 +317,11 @@ export default function FeedPage() {
                 <span>Jobs</span>
                 <span>Privacy</span>
                 <span>Terms</span>
-                <p className="mt-4">&copy; 2024 Kimenyi Connect</p>
+                <p className="mt-4">&copy; 2024 Rumenera Family Tree</p>
             </footer>
         </div>
     </div>
   )
 
     
+
