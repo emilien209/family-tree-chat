@@ -10,6 +10,7 @@ import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
+import Image from "next/image";
 
 
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Group, KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -115,9 +116,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">
-                <div className="p-3 bg-primary rounded-full">
-                    <Group className="h-8 w-8 text-primary-foreground" />
-                </div>
+              <Image src="/logo.png" alt="Rumenera Logo" width={48} height={48} />
             </div>
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
           <CardDescription>

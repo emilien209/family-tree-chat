@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Group } from "lucide-react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import LanguageSwitcher from "./language-switcher"
 
@@ -27,7 +27,7 @@ export default function Header() {
     )}>
       <div className="container flex h-16 items-center px-4 md:px-6">
         <Link href="/" className="mr-6 flex items-center gap-2" prefetch={false}>
-          <Group className="h-6 w-6 text-primary" />
+          <Image src="/logo.png" alt="Rumenera Logo" width={28} height={28} className="h-7 w-7" />
           <span className="font-bold text-lg">Rumenera Family Tree</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
