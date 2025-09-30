@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { PlusSquare, Upload, X, Loader2 } from "lucide-react";
+import { PlusSquare, Upload, X, Loader2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,8 @@ import { db, auth, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 
 export default function CreatePage() {
   const { toast } = useToast();
@@ -20,6 +22,7 @@ export default function CreatePage() {
   const [mediaFile, setMediaFile] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [isPosting, setIsPosting] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -32,8 +35,15 @@ export default function CreatePage() {
     }
   };
 
+  const handleUrlSubmit = () => {
+    if(imageUrl) {
+        setMediaFile(imageUrl);
+    }
+  }
+
   const removeMedia = () => {
     setMediaFile(null);
+    setImageUrl("");
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -44,10 +54,14 @@ export default function CreatePage() {
 
     setIsPosting(true);
     try {
-      const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
-      const snapshot = await uploadString(storageRef, mediaFile, 'data_url');
-      const imageUrl = await getDownloadURL(snapshot.ref);
-
+      let finalImageUrl = mediaFile;
+      // If it's a data URL, upload to storage
+      if (mediaFile.startsWith('data:')) {
+        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
+        const snapshot = await uploadString(storageRef, mediaFile, 'data_url');
+        finalImageUrl = await getDownloadURL(snapshot.ref);
+      }
+      
       await addDoc(collection(db, "posts"), {
         author: {
           name: user.displayName,
@@ -55,7 +69,7 @@ export default function CreatePage() {
           uid: user.uid,
         },
         content: caption,
-        imageUrl: imageUrl,
+        imageUrl: finalImageUrl,
         likes: 0,
         comments: [],
         timestamp: serverTimestamp(),
@@ -112,24 +126,42 @@ export default function CreatePage() {
                 />
               </div>
             ) : (
-              <div 
-                className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center cursor-pointer hover:border-primary transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-lg font-semibold">Drag and drop photos or videos here</p>
-                <p className="text-muted-foreground mt-1">or click to browse</p>
-                <Button className="mt-6" asChild>
-                    <span>Select from computer</span>
-                </Button>
-                 <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*,video/*"
-                />
-              </div>
+                <Tabs defaultValue="upload" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="upload">Upload</TabsTrigger>
+                        <TabsTrigger value="url">From URL</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upload">
+                        <div 
+                            className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center cursor-pointer hover:border-primary transition-colors mt-4"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <Upload className="h-12 w-12 text-muted-foreground" />
+                            <p className="mt-4 text-lg font-semibold">Drag and drop or click to browse</p>
+                            <Button className="mt-6" asChild>
+                                <span>Select from computer</span>
+                            </Button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/*,video/*"
+                            />
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="url">
+                         <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center mt-4">
+                            <LinkIcon className="h-12 w-12 text-muted-foreground" />
+                            <p className="mt-4 text-lg font-semibold">Paste an image URL</p>
+                            <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
+                                <Input type="url" placeholder="https://example.com/image.png" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                                <Button type="button" onClick={handleUrlSubmit}>Add</Button>
+                            </div>
+                         </div>
+                    </TabsContent>
+                </Tabs>
+              
             )}
           </CardContent>
           {mediaFile && (

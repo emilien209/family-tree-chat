@@ -1,4 +1,5 @@
 import Sidebar from "@/components/layout/sidebar";
+import AiChat from "@/components/layout/ai-chat";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export default function AppLayout({
       <main className="flex-1 flex flex-col">
         {children}
       </main>
+      <AiChat />
     </div>
   );
 }

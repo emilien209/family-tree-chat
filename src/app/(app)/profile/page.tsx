@@ -18,8 +18,9 @@ import { Label } from "@/components/ui/label";
 import { generateFamilyImage } from "@/ai/flows/generate-family-image";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Wand2, Loader2, Upload, User, Save } from "lucide-react";
+import { Wand2, Loader2, Upload, User, Save, Link as LinkIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const profileFormSchema = z.object({
     fullName: z.string().min(2, "Name must be at least 2 characters."),
@@ -37,6 +38,8 @@ export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+    const [avatarUrl, setAvatarUrl] = useState('');
+
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(newUser => {
@@ -71,9 +74,16 @@ export default function ProfilePage() {
             const reader = new FileReader();
             reader.onload = (e) => {
                 setNewAvatar(e.target?.result as string);
-                setGeneratedImageUrl(null); // Clear generated image if a file is chosen
+                setGeneratedImageUrl(null);
             };
             reader.readAsDataURL(file);
+        }
+    };
+    
+    const handleUrlSubmit = () => {
+        if(avatarUrl) {
+            setNewAvatar(avatarUrl);
+            setGeneratedImageUrl(null);
         }
     };
 
@@ -84,14 +94,18 @@ export default function ProfilePage() {
         try {
             let photoURL = user.photoURL;
 
-            // If a new avatar (from file or generator) is set, upload it
             if (newAvatar) {
-                const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
-                const snapshot = await uploadString(storageRef, newAvatar, 'data_url');
-                photoURL = await getDownloadURL(snapshot.ref);
+                if (newAvatar.startsWith('data:')) {
+                    // Upload base64 data URL to storage
+                    const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
+                    const snapshot = await uploadString(storageRef, newAvatar, 'data_url');
+                    photoURL = await getDownloadURL(snapshot.ref);
+                } else {
+                    // It's a direct URL
+                    photoURL = newAvatar;
+                }
             }
 
-            // Update profile with new name and/or photo
             await updateProfile(user, {
                 displayName: values.fullName,
                 photoURL: photoURL,
@@ -99,15 +113,14 @@ export default function ProfilePage() {
 
             setNewAvatar(null);
             setGeneratedImageUrl(null);
+            setAvatarUrl('');
 
             toast({
                 title: "Profile Updated",
                 description: "Your profile has been successfully updated.",
             });
 
-            // Force a reload of the user to get the latest profile data
             await user.reload(); 
-            // This is a simple way to force re-render, a better way is to use a global state
             window.location.reload();
 
         } catch (error) {
@@ -128,7 +141,7 @@ export default function ProfilePage() {
         try {
             const result = await generateFamilyImage(values);
             setGeneratedImageUrl(result.imageUrl);
-            setNewAvatar(result.imageUrl); // Set as the new avatar to be uploaded
+            setNewAvatar(result.imageUrl);
             toast({
                 title: "Image Generated!",
                 description: "Your new avatar is ready. Save changes to apply.",
@@ -168,7 +181,7 @@ export default function ProfilePage() {
                                 <div className="flex items-center gap-6">
                                     <Avatar className="h-24 w-24">
                                         <AvatarImage src={currentAvatarSrc} />
-                                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                                        <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <input
                                         type="file"
@@ -177,9 +190,23 @@ export default function ProfilePage() {
                                         className="hidden"
                                         accept="image/*"
                                     />
-                                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                                        <Upload className="mr-2" /> Upload Photo
-                                    </Button>
+                                    <Tabs defaultValue="upload" className="w-full max-w-xs">
+                                        <TabsList>
+                                            <TabsTrigger value="upload">Upload</TabsTrigger>
+                                            <TabsTrigger value="url">URL</TabsTrigger>
+                                        </TabsList>
+                                        <TabsContent value="upload">
+                                            <Button type="button" variant="outline" className="mt-2 w-full" onClick={() => fileInputRef.current?.click()}>
+                                                <Upload className="mr-2" /> Upload Photo
+                                            </Button>
+                                        </TabsContent>
+                                        <TabsContent value="url">
+                                             <div className="flex items-center space-x-2 mt-2">
+                                                <Input type="url" placeholder="Image URL" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
+                                                <Button type="button" onClick={handleUrlSubmit}>Set</Button>
+                                            </div>
+                                        </TabsContent>
+                                    </Tabs>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField

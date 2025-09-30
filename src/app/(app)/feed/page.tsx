@@ -56,7 +56,7 @@ const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => 
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
               <AvatarImage src={user.avatar} />
-              <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <p className="text-white font-semibold text-sm">{user.name}</p>
           </div>
@@ -181,24 +181,47 @@ export default function FeedPage() {
     }
   };
 
-  const handleLikePost = async (postId: string) => {
-    if (!user) return;
-    const postRef = doc(db, "posts", postId);
-    try {
-      // For simplicity, we're just incrementing.
-      // A more robust solution would track who has liked the post.
-      await updateDoc(postRef, {
-        likes: increment(1)
-      });
-    } catch (err) {
-      console.error("Error liking post: ", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Could not like post.",
-      });
-    }
-  };
+    const handleLikePost = async (postId: string, authorId: string) => {
+        if (!user || user.uid === authorId) return; // Can't like your own post or if not logged in
+        
+        const postRef = doc(db, "posts", postId);
+        const likeRef = doc(postRef, "likes", user.uid);
+        const notificationRef = collection(db, "users", authorId, "notifications");
+
+        try {
+            const likeDoc = await getDoc(likeRef);
+            if (likeDoc.exists()) {
+                // Unlike
+                await deleteDoc(likeRef);
+            } else {
+                // Like
+                await setDoc(likeRef, {
+                    timestamp: serverTimestamp()
+                });
+                // Add notification for the post author
+                await addDoc(notificationRef, {
+                    type: "like",
+                    from: {
+                        name: user.displayName,
+                        avatar: user.photoURL,
+                        uid: user.uid,
+                    },
+                    post: {
+                        id: postId,
+                    },
+                    read: false,
+                    timestamp: serverTimestamp()
+                });
+            }
+        } catch (err) {
+            console.error("Error liking post: ", err);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not update like status.",
+            });
+        }
+    };
   
   const posts = useMemo(() => {
     if (!postsSnapshot) return [];
@@ -214,6 +237,7 @@ export default function FeedPage() {
         const targetUserRef = doc(db, 'users', targetUserId);
         const followingRef = doc(currentUserRef, 'following', targetUserId);
         const followersRef = doc(targetUserRef, 'followers', user.uid);
+        const notificationRef = collection(db, "users", targetUserId, "notifications");
         
         try {
             const isFollowing = following.includes(targetUserId);
@@ -226,6 +250,17 @@ export default function FeedPage() {
                 // Follow
                 await setDoc(followingRef, { timestamp: serverTimestamp() });
                 await setDoc(followersRef, { timestamp: serverTimestamp() });
+                // Add notification for the followed user
+                 await addDoc(notificationRef, {
+                    type: "follow",
+                    from: {
+                        name: user.displayName,
+                        avatar: user.photoURL,
+                        uid: user.uid,
+                    },
+                    read: false,
+                    timestamp: serverTimestamp()
+                });
             }
         } catch (error) {
             console.error("Error following/unfollowing user:", error);
@@ -256,7 +291,7 @@ export default function FeedPage() {
                           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
                            <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
                                 <AvatarImage src={story.avatar} />
-                                <AvatarFallback>{story.name?.charAt(0) || 'U'}</AvatarFallback>
+                                <AvatarFallback>{story.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                         </div>
                         <p className="text-xs truncate w-full text-center">{story.name}</p>
@@ -270,7 +305,7 @@ export default function FeedPage() {
                     <div className="flex items-center gap-4">
                          <Avatar>
                             <AvatarImage src={user?.photoURL || undefined} />
-                            <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                            <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <Textarea 
                         placeholder={`What's on your mind, ${user?.displayName?.split(' ')[0] || 'User'}?`} 
@@ -361,7 +396,7 @@ export default function FeedPage() {
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleLikePost(post.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleLikePost(post.id, post.author.uid)}>
                             <Heart className="h-6 w-6" />
                         </Button>
                          <Button variant="ghost" size="icon">
@@ -399,7 +434,7 @@ export default function FeedPage() {
                              <div className="flex items-center gap-3">
                                  <Avatar className="h-10 w-10">
                                      <AvatarImage src={suggUser.avatar} />
-                                     <AvatarFallback>{suggUser.name?.charAt(0) || 'U'}</AvatarFallback>
+                                     <AvatarFallback>{suggUser.name?.charAt(0)}</AvatarFallback>
                                  </Avatar>
                                  <div>
                                      <p className="font-semibold text-sm">{suggUser.name}</p>
@@ -440,3 +475,4 @@ export default function FeedPage() {
     
 
     
+
