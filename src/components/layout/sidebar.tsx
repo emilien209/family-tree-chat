@@ -88,7 +88,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
       <div className="flex items-center gap-2 pb-4 border-b mb-4">
-        <h1 className="text-2xl font-bold font-serif">Rumenera Family Tree</h1>
+        <h1 className="text-2xl font-bold font-serif">Family Chat</h1>
       </div>
 
       <nav className="flex-1 space-y-1">
