@@ -12,6 +12,7 @@ import { Phone, Video } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import Link from 'next/link';
 
 export default function ChatPage() {
     const user = auth.currentUser;
@@ -97,9 +98,11 @@ export default function ChatPage() {
                         <Phone className="h-5 w-5" />
                         <span className="sr-only">Audio Call</span>
                     </Button>
-                    <Button variant="ghost" size="icon">
-                        <Video className="h-5 w-5" />
-                        <span className="sr-only">Video Call</span>
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/video-call">
+                            <Video className="h-5 w-5" />
+                            <span className="sr-only">Video Call</span>
+                        </Link>
                     </Button>
                 </div>
             </header>
