@@ -9,6 +9,7 @@ import {
   LogOut,
   Group,
   Newspaper,
+  Target,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/chat", icon: MessageSquare, label: "Chat", notifications: 3 },
   { href: "/feed", icon: Newspaper, label: "Family Feed", notifications: 0 },
   { href: "/events", icon: Calendar, label: "Events", notifications: 1 },
+  { href: "/goals", icon: Target, label: "Family Goals", notifications: 0 },
 ];
 
 export default function Sidebar() {
