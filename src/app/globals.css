@@ -35,25 +35,25 @@ body {
   }
 
   .dark {
-    --background: 20 14.3% 4.1%;
+    --background: 222 84% 4.9%;
     --foreground: 60 9.1% 97.8%;
-    --card: 24 9.8% 10%;
+    --card: 222 84% 4.9%;
     --card-foreground: 60 9.1% 97.8%;
-    --popover: 20 14.3% 4.1%;
+    --popover: 222 84% 4.9%;
     --popover-foreground: 60 9.1% 97.8%;
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 12 6.5% 15.1%;
+    --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 60 9.1% 97.8%;
-    --muted: 12 6.5% 15.1%;
-    --muted-foreground: 24 5.4% 63.9%;
-    --accent: 12 6.5% 15.1%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 60 9.1% 97.8%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 60 9.1% 97.8%;
-    --border: 12 6.5% 15.1%;
-    --input: 12 6.5% 15.1%;
-    --ring: 142.1 76.2% 36.3%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
@@ -63,6 +63,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    background-color: #000;
   }
 }
 
@@ -84,5 +85,45 @@ body {
 
   .animate-spin-slow {
     animation: spin 4s linear infinite;
+  }
+  
+  .starfield {
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    background: #000;
+  }
+
+  .starfield span {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #fff;
+    border-radius: 50%;
+    animation: move 150s linear infinite;
+    opacity: 0;
+  }
+  
+  .starfield span:before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  
+  @keyframes move {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100vh);
+      opacity: 0;
+    }
   }
 }
