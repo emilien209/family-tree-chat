@@ -63,6 +63,10 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    background-image: url('https://i.imgur.com/2h3B3p5.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
   }
 }
 
