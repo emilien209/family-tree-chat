@@ -22,7 +22,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         // Determine if it's a private chat or group chat
         const collectionPath = chatId === 'group' 
             ? `chats/group/messages` 
-            : `chats/private/${chatId}/messages`;
+            : `privateChats/${chatId}/messages`;
 
         try {
             await addDoc(collection(db, collectionPath), {

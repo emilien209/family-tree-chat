@@ -103,6 +103,16 @@ export default function ChatPage() {
 
     }, [usersSnapshot, followedUsers, initialUserId]);
 
+    const getPrivateChatId = (userId1: string, userId2: string) => {
+        return userId1 < userId2 ? `${userId1}_${userId2}` : `${userId2}_${userId1}`;
+    }
+
+    const chatId = useMemo(() => {
+        if (!user || !selectedUser) return null;
+        if (selectedUser.id === 'group') return 'group';
+        return getPrivateChatId(user.uid, selectedUser.id);
+    }, [user, selectedUser]);
+
 
     return (
         <div className="flex h-screen bg-background">
@@ -200,10 +210,10 @@ export default function ChatPage() {
                             </div>
                         </header>
                         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                            <MessageList chatId={selectedUser?.id} />
+                            <MessageList chatId={chatId} />
                         </div>
                         <div className="border-t p-4 bg-background">
-                            <MessageInput chatId={selectedUser?.id} />
+                            <MessageInput chatId={chatId} />
                         </div>
                     </>
                 ) : (

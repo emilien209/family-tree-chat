@@ -56,7 +56,7 @@ export default function MessageList({ chatId }: MessageListProps) {
 
         const collectionPath = chatId === 'group'
             ? 'chats/group/messages'
-            : `chats/private/${chatId}/messages`;
+            : `privateChats/${chatId}/messages`;
 
         const q = query(collection(db, collectionPath), orderBy("timestamp", "asc"));
 
