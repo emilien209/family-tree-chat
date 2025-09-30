@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Mail, Phone, MessageSquarePlus } from 'lucide-react';
+import { Users, Mail, Phone, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
@@ -18,6 +18,7 @@ interface User {
   name?: string;
   email?: string;
   avatar?: string;
+  online?: boolean;
 }
 
 const UserSkeleton = () => (
@@ -46,7 +47,9 @@ export default function MembersPage() {
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedUsers: User[] = [];
       querySnapshot.forEach((doc) => {
-        fetchedUsers.push({ id: doc.id, ...doc.data() } as User);
+        // For demonstration, we'll randomly assign online status.
+        // In a real app, this would come from a presence system (e.g., Firestore Realtime Database).
+        fetchedUsers.push({ id: doc.id, online: Math.random() > 0.5, ...doc.data() } as User);
       });
       setUsers(fetchedUsers);
       setLoading(false);
@@ -62,6 +65,10 @@ export default function MembersPage() {
   const handleSendMessage = (userId: string) => {
     router.push(`/chat?userId=${userId}`);
   };
+  
+  const handleStartGroupCall = () => {
+    router.push('/video-call?type=group');
+  }
 
   const handleSendGroupMessage = async (message: string) => {
     if (!auth.currentUser) return;
@@ -88,7 +95,13 @@ export default function MembersPage() {
           <Users className="h-6 w-6" />
           <h2 className="text-xl font-semibold font-headline">Family Members</h2>
         </div>
-        <GroupMessageDialog onSend={handleSendGroupMessage} />
+        <div className="flex items-center gap-2">
+            <GroupMessageDialog onSend={handleSendGroupMessage} />
+            <Button variant="outline" onClick={handleStartGroupCall}>
+                <Video className="mr-2 h-4 w-4" />
+                Group Call
+            </Button>
+        </div>
       </header>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -116,7 +129,18 @@ export default function MembersPage() {
                             <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                            <p className="font-semibold">{user.name}</p>
+                            <div className="flex items-center gap-2">
+                                <p className="font-semibold">{user.name}</p>
+                                {user.online && (
+                                     <div className="flex items-center gap-1.5">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                        </span>
+                                        <p className="text-xs text-muted-foreground">Online</p>
+                                    </div>
+                                )}
+                            </div>
                             <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => handleSendMessage(user.id)}>
