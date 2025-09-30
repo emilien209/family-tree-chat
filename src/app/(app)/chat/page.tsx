@@ -10,12 +10,12 @@ export default function ChatPage() {
                     <div className="relative">
                         <Avatar>
                             <AvatarImage src="https://picsum.photos/seed/group/40/40" />
-                            <AvatarFallback>KC</AvatarFallback>
+                            <AvatarFallback>RT</AvatarFallback>
                         </Avatar>
                         <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-semibold font-headline">Kimenyi Family</h2>
+                        <h2 className="text-lg font-semibold font-headline">Rumenera Tree Family</h2>
                         <p className="text-sm text-muted-foreground">4 members online</p>
                     </div>
                 </div>
