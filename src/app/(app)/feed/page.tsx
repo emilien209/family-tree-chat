@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button"
@@ -51,11 +51,11 @@ interface User {
 const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="relative w-full max-w-sm h-[90vh] bg-background rounded-lg overflow-hidden shadow-2xl">
-        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} layout="fill" objectFit="cover" />
+        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} fill objectFit="cover" />
         <div className="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar || `https://picsum.photos/seed/${user.id}/40/40`} />
+              <AvatarImage src={user.avatar} />
               <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
             <p className="text-white font-semibold text-sm">{user.name}</p>
@@ -71,7 +71,7 @@ const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => 
 
 export default function FeedPage() {
   const { toast } = useToast();
-  const user = auth.currentUser;
+  const [user, setUser] = useState(auth.currentUser);
   const [postContent, setPostContent] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [postImage, setPostImage] = useState<string | null>(null);
@@ -79,6 +79,12 @@ export default function FeedPage() {
   const [following, setFollowing] = useState<string[]>([]);
   const [selectedStoryUser, setSelectedStoryUser] = useState<User | null>(null);
 
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(newUser => {
+      setUser(newUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const postsRef = collection(db, "posts");
   const q = query(postsRef, orderBy("timestamp", "desc"));
@@ -149,7 +155,7 @@ export default function FeedPage() {
       await addDoc(postsRef, {
         author: {
           name: user.displayName,
-          avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`,
+          avatar: user.photoURL,
           uid: user.uid,
         },
         content: postContent,
@@ -249,7 +255,7 @@ export default function FeedPage() {
                         <div className="relative w-[60px] h-[60px]">
                           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
                            <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
-                                <AvatarImage src={story.avatar || `https://picsum.photos/seed/${story.id}/80/80`} />
+                                <AvatarImage src={story.avatar} />
                                 <AvatarFallback>{story.name?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
                         </div>
@@ -263,7 +269,7 @@ export default function FeedPage() {
                 <CardHeader>
                     <div className="flex items-center gap-4">
                          <Avatar>
-                            <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} />
+                            <AvatarImage src={user?.photoURL || undefined} />
                             <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <Textarea 
@@ -392,7 +398,7 @@ export default function FeedPage() {
                          <div key={suggUser.id} className="flex items-center justify-between">
                              <div className="flex items-center gap-3">
                                  <Avatar className="h-10 w-10">
-                                     <AvatarImage src={suggUser.avatar || `https://picsum.photos/seed/${suggUser.id}/40/40`} />
+                                     <AvatarImage src={suggUser.avatar} />
                                      <AvatarFallback>{suggUser.name?.charAt(0) || 'U'}</AvatarFallback>
                                  </Avatar>
                                  <div>

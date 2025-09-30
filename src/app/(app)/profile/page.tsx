@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,12 +31,19 @@ const imagePromptSchema = z.object({
 
 export default function ProfilePage() {
     const { toast } = useToast();
-    const user = auth.currentUser;
+    const [user, setUser] = useState(auth.currentUser);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [newAvatar, setNewAvatar] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(newUser => {
+            setUser(newUser);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
@@ -44,6 +51,12 @@ export default function ProfilePage() {
             fullName: user?.displayName || "",
         },
     });
+
+    useEffect(() => {
+        if (user) {
+            profileForm.reset({ fullName: user.displayName || "" });
+        }
+    }, [user, profileForm]);
 
     const imagePromptForm = useForm<z.infer<typeof imagePromptSchema>>({
         resolver: zodResolver(imagePromptSchema),
@@ -133,7 +146,7 @@ export default function ProfilePage() {
     }
 
 
-    const currentAvatarSrc = newAvatar || user?.photoURL || `https://picsum.photos/seed/${user?.uid}/200/200`;
+    const currentAvatarSrc = newAvatar || user?.photoURL || undefined;
 
     return (
         <div className="flex flex-col h-full">

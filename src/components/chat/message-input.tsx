@@ -21,7 +21,7 @@ export default function MessageInput() {
                 timestamp: serverTimestamp(),
                 user: {
                     name: auth.currentUser.displayName || "Anonymous",
-                    avatar: auth.currentUser.photoURL || `https://picsum.photos/seed/${auth.currentUser.uid}/40/40`,
+                    avatar: auth.currentUser.photoURL,
                     uid: auth.currentUser.uid,
                 },
             });

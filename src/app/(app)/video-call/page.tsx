@@ -99,7 +99,7 @@ export default function VideoCallPage() {
              {isVideoOff && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/100/100`}/>
+                        <AvatarImage src={user?.photoURL || undefined}/>
                         <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                     <p className="mt-4 text-white font-semibold">Video is off</p>

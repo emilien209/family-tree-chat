@@ -51,7 +51,7 @@ export default function CreatePage() {
       await addDoc(collection(db, "posts"), {
         author: {
           name: user.displayName,
-          avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`,
+          avatar: user.photoURL,
           uid: user.uid,
         },
         content: caption,

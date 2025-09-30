@@ -64,7 +64,7 @@ export default function ChatPage() {
                             onClick={() => setSelectedUser(u)}
                            >
                                 <Avatar className="h-10 w-10">
-                                    <AvatarImage src={u.avatar || `https://picsum.photos/seed/${u.id}/40/40`} />
+                                    <AvatarImage src={u.avatar} />
                                     <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1">
@@ -84,7 +84,7 @@ export default function ChatPage() {
                         <header className="flex items-center justify-between h-16 shrink-0 border-b px-6">
                             <div className="flex items-center gap-3">
                                 <Avatar>
-                                    <AvatarImage src={selectedUser.avatar || `https://picsum.photos/seed/${selectedUser.id}/40/40`} />
+                                    <AvatarImage src={selectedUser.avatar} />
                                     <AvatarFallback>{selectedUser.name?.charAt(0) || 'U'}</AvatarFallback>
                                 </Avatar>
                                 <div>

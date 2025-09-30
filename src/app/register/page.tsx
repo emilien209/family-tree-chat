@@ -72,6 +72,7 @@ export default function RegisterPage() {
       
       await updateProfile(user, {
         displayName: values.fullName,
+        photoURL: null,
       });
 
       // Save user info to Firestore 'users' collection
@@ -79,7 +80,7 @@ export default function RegisterPage() {
         name: values.fullName,
         email: user.email,
         uid: user.uid,
-        avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/80/80`
+        avatar: null
       });
 
       toast({

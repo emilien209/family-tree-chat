@@ -86,7 +86,7 @@ export default function MembersPage() {
                 <Card key={user.id}>
                     <CardContent className="p-4 flex items-center gap-4">
                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={user.avatar || `https://picsum.photos/seed/${user.id}/80/80`} />
+                            <AvatarImage src={user.avatar} />
                             <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">

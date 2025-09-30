@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useEffect, useState } from "react"
 
 const mainNavItems = [
   { href: "/feed", icon: Home, label: "Home" },
@@ -43,7 +44,14 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { toast } = useToast()
-  const user = auth.currentUser
+  const [user, setUser] = useState(auth.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(newUser => {
+      setUser(newUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -95,7 +103,7 @@ export default function Sidebar() {
           >
             <Link href="/profile">
                 <Avatar className="mr-4 h-6 w-6">
-                  <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} />
+                  <AvatarImage src={user?.photoURL || undefined} />
                   <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
                Profile
