@@ -58,27 +58,24 @@ export default function ChatPage() {
 
 
     useEffect(() => {
-        if (usersLoading || followingLoading) return;
-        
+        if (usersLoading || followingLoading || !usersSnapshot) return;
+
         if (isGroupChat) {
              setSelectedUser({ id: 'group', name: 'Family Group Chat' });
              return;
         }
 
-        const allUsers = usersSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)) || [];
+        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 
         if (initialUserId) {
             const userToSelect = allUsers.find(u => u.id === initialUserId);
             if (userToSelect) {
                 setSelectedUser(userToSelect);
-                return;
             }
-        }
-        
-        if (!selectedUser && followedUsers.length > 0) {
+        } else if (followedUsers.length > 0) {
             setSelectedUser(followedUsers[0]);
         }
-    }, [initialUserId, usersSnapshot, followedUsers, selectedUser, usersLoading, followingLoading, isGroupChat]);
+    }, [initialUserId, usersLoading, followingLoading, isGroupChat, usersSnapshot, followedUsers]);
     
     const contactList = useMemo(() => {
         if (!usersSnapshot) return [];
