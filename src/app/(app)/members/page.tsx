@@ -38,10 +38,6 @@ export default function MembersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // This is a simplified example.
-    // In a real-world scenario, you'd want to fetch this from a 'users' collection
-    // that you populate when a user registers.
-    // For now, we will listen to online users as a proxy for all users.
     const q = query(collection(db, 'users'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
