@@ -41,16 +41,12 @@ const PostSkeleton = () => (
   </Card>
 );
 
-const stories = [
-    { name: "_jae.t.i.t.i...", image: "https://picsum.photos/seed/1/80/80" },
-    { name: "ka.ra.bo_13", image: "https://picsum.photos/seed/2/80/80" },
-    { name: "ayiflair", image: "https://picsum.photos/seed/3/80/80" },
-    { name: "oliparfect", image: "https://picsum.photos/seed/4/80/80" },
-    { name: "yasin_myy...", image: "https://picsum.photos/seed/5/80/80" },
-    { name: "rocky_kim...", image: "https://picsum.photos/seed/6/80/80" },
-    { name: "user7", image: "https://picsum.photos/seed/7/80/80" },
-    { name: "user8", image: "https://picsum.photos/seed/8/80/80" },
-]
+interface User {
+  id: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+}
 
 export default function FeedPage() {
   const { toast } = useToast();
@@ -64,6 +60,28 @@ export default function FeedPage() {
   const postsRef = collection(db, "posts");
   const q = query(postsRef, orderBy("timestamp", "desc"));
   const [postsSnapshot, loading, error] = useCollection(q);
+  
+  const usersRef = collection(db, "users");
+  const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
+
+  const stories = useMemo(() => {
+    if (!usersSnapshot) return [];
+    // Show up to 8 users as stories, excluding the current user
+    return usersSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as User))
+        .filter(u => u.id !== user?.uid)
+        .slice(0, 8);
+  }, [usersSnapshot, user]);
+
+  const suggestedUsers = useMemo(() => {
+    if (!usersSnapshot) return [];
+    // Show up to 5 suggested users, excluding the current user
+    return usersSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as User))
+        .filter(u => u.id !== user?.uid)
+        .slice(0, 5);
+  }, [usersSnapshot, user]);
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -157,13 +175,19 @@ export default function FeedPage() {
         <div className="md:col-span-2 space-y-6">
             {/* Stories */}
             <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
+                {usersLoading && [...Array(8)].map((_, i) => (
+                    <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
+                       <Skeleton className="w-[60px] h-[60px] rounded-full" />
+                       <Skeleton className="h-3 w-16" />
+                    </div>
+                ))}
                 {stories.map(story => (
-                    <div key={story.name} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
+                    <div key={story.id} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
                         <div className="relative w-[60px] h-[60px]">
                           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
                            <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
-                                <AvatarImage src={story.image} />
-                                <AvatarFallback>{story.name.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={story.avatar || `https://picsum.photos/seed/${story.id}/80/80`} />
+                                <AvatarFallback>{story.name?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
                         </div>
                         <p className="text-xs truncate w-full text-center">{story.name}</p>
@@ -292,15 +316,24 @@ export default function FeedPage() {
                     <CardTitle className="text-base">Suggested for you</CardTitle>
                 </CardHeader>
                  <CardContent className="space-y-4">
-                     {[...Array(5)].map((_, i) => (
-                         <div key={i} className="flex items-center justify-between">
+                    {usersLoading && [...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                           <Skeleton className="h-10 w-10 rounded-full" />
+                           <div className="space-y-2 flex-1">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-3 w-16" />
+                           </div>
+                        </div>
+                    ))}
+                     {suggestedUsers.map((suggUser) => (
+                         <div key={suggUser.id} className="flex items-center justify-between">
                              <div className="flex items-center gap-3">
                                  <Avatar className="h-10 w-10">
-                                     <AvatarImage src={`https://picsum.photos/seed/sugg-${i}/40/40`} />
-                                     <AvatarFallback>U</AvatarFallback>
+                                     <AvatarImage src={suggUser.avatar || `https://picsum.photos/seed/${suggUser.id}/40/40`} />
+                                     <AvatarFallback>{suggUser.name?.charAt(0) || 'U'}</AvatarFallback>
                                  </Avatar>
                                  <div>
-                                     <p className="font-semibold text-sm">user_{i+1}</p>
+                                     <p className="font-semibold text-sm">{suggUser.name}</p>
                                      <p className="text-xs text-muted-foreground">Suggested for you</p>
                                  </div>
                              </div>
@@ -325,3 +358,6 @@ export default function FeedPage() {
 
     
 
+
+
+    
