@@ -77,12 +77,17 @@ export default function RegisterPage() {
       });
       router.push("/chat");
     } catch (error: any) {
-      console.error(error);
-      let errorMessage = "An unknown error occurred.";
+      console.error("Registration Error:", error.code);
+      let errorMessage = "An unknown error occurred during registration.";
        if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already in use. Please try another one or log in.';
+        errorMessage = 'This email is already registered. Please log in or use a different email.';
+        form.setError("email", { message: errorMessage });
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'The password is too weak. Please choose a stronger password.';
+        form.setError("password", { message: errorMessage });
+      } else {
+        form.setError("root", { message: errorMessage });
       }
-      form.setError("root", { message: errorMessage });
       toast({
         variant: "destructive",
         title: "Registration Failed",

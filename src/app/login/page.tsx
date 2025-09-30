@@ -58,12 +58,14 @@ export default function LoginPage() {
       });
       router.push("/chat");
     } catch (error: any) {
-      console.error(error);
+      console.error("Login Error:", error.code);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = "Invalid email or password. Please try again.";
+        form.setError("root", { message: errorMessage });
+      } else {
+        form.setError("root", { message: errorMessage });
       }
-      form.setError("root", { message: errorMessage });
       toast({
         variant: "destructive",
         title: "Login Failed",
