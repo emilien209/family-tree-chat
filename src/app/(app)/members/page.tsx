@@ -1,16 +1,17 @@
 "use client";
 
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, query, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Mail, Phone } from 'lucide-react';
+import { Users, Mail, Phone, MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { GroupMessageDialog } from '@/components/members/group-message-dialog';
 
 interface User {
   id: string;
@@ -62,13 +63,32 @@ export default function MembersPage() {
     router.push(`/chat?userId=${userId}`);
   };
 
+  const handleSendGroupMessage = async (message: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await addDoc(collection(db, "chats", "group", "messages"), {
+        text: message,
+        timestamp: serverTimestamp(),
+        user: {
+          name: auth.currentUser.displayName,
+          avatar: auth.currentUser.photoURL,
+          uid: auth.currentUser.uid,
+        },
+      });
+      router.push('/chat?group=true');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <header className="flex items-center h-16 shrink-0 border-b px-6">
+      <header className="flex items-center justify-between h-16 shrink-0 border-b px-6">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6" />
           <h2 className="text-xl font-semibold font-headline">Family Members</h2>
         </div>
+        <GroupMessageDialog onSend={handleSendGroupMessage} />
       </header>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -92,7 +112,7 @@ export default function MembersPage() {
                 <Card key={user.id}>
                     <CardContent className="p-4 flex items-center gap-4">
                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={user.avatar} />
+                            <AvatarImage src={user.avatar ?? undefined} />
                             <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">

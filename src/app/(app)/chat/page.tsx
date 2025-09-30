@@ -1,7 +1,7 @@
 "use client";
 
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import MessageInput from "@/components/chat/message-input";
 import MessageList from "@/components/chat/message-list";
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface User {
   id: string;
@@ -26,6 +27,7 @@ export default function ChatPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialUserId = searchParams.get('userId');
+    const isGroupChat = searchParams.get('group') === 'true';
 
     const usersRef = collection(db, "users");
     const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
@@ -58,6 +60,11 @@ export default function ChatPage() {
     useEffect(() => {
         if (usersLoading || followingLoading) return;
         
+        if (isGroupChat) {
+             setSelectedUser({ id: 'group', name: 'Family Group Chat' });
+             return;
+        }
+
         const allUsers = usersSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)) || [];
 
         if (initialUserId) {
@@ -71,12 +78,15 @@ export default function ChatPage() {
         if (!selectedUser && followedUsers.length > 0) {
             setSelectedUser(followedUsers[0]);
         }
-    }, [initialUserId, usersSnapshot, followedUsers, selectedUser, usersLoading, followingLoading]);
+    }, [initialUserId, usersSnapshot, followedUsers, selectedUser, usersLoading, followingLoading, isGroupChat]);
     
     const contactList = useMemo(() => {
         if (!usersSnapshot) return [];
         const allUsersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as User]));
         const contacts = new Set<User>();
+        
+        // Add group chat
+        contacts.add({id: 'group', name: 'Family Group Chat'})
 
         // Add followed users
         followedUsers.forEach(u => contacts.add(u));
@@ -88,7 +98,7 @@ export default function ChatPage() {
                 contacts.add(initialUser);
             }
         }
-
+        
         return Array.from(contacts);
 
     }, [usersSnapshot, followedUsers, initialUserId]);
@@ -100,8 +110,8 @@ export default function ChatPage() {
                 <header className="p-4 border-b">
                      <div className="flex justify-between items-center">
                         <h2 className="text-xl font-bold font-headline">Messages</h2>
-                        <Button variant="ghost" size="icon">
-                            <MessageSquarePlus />
+                        <Button variant="ghost" size="icon" asChild>
+                           <Link href="/search"><Search /></Link> 
                         </Button>
                      </div>
                      <div className="relative mt-4">
@@ -114,28 +124,33 @@ export default function ChatPage() {
                        {(usersLoading || followingLoading) && <p className="p-4 text-sm text-muted-foreground">Loading contacts...</p>}
                        {usersError && <p className="p-4 text-sm text-destructive">Error loading contacts.</p>}
                        
-                       {!usersLoading && !followingLoading && contactList.length === 0 && (
-                            <div className="p-4 text-center text-muted-foreground">
-                                <p>You are not following anyone yet.</p>
-                                <Button variant="link" asChild><Link href="/members">Find members to follow</Link></Button>
-                            </div>
-                        )}
-
                        {contactList.map(u => (
                            <button 
                             key={u.id} 
                             className={`w-full text-left p-3 flex items-center gap-3 rounded-lg transition-colors ${selectedUser?.id === u.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
-                            onClick={() => setSelectedUser(u)}
+                            onClick={() => {
+                                if (u.id === 'group') {
+                                    router.push('/chat?group=true');
+                                } else {
+                                    router.push(`/chat?userId=${u.id}`);
+                                }
+                                setSelectedUser(u)
+                            }}
                            >
                                 <Avatar className="h-10 w-10">
-                                    <AvatarImage src={u.avatar} />
-                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                    {u.id === 'group' ? 
+                                     <AvatarFallback><Users/></AvatarFallback> :
+                                     <>
+                                        <AvatarImage src={u.avatar} />
+                                        <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                     </>
+                                    }
                                 </Avatar>
                                 <div className="flex-1">
                                     <p className="font-semibold">{u.name}</p>
-                                    <p className="text-sm text-muted-foreground truncate">Last message preview...</p>
+                                    {u.id !== 'group' && <p className="text-sm text-muted-foreground truncate">Last message preview...</p>}
                                 </div>
-                                <span className="text-xs text-muted-foreground">2h</span>
+                                {u.id !== 'group' && <span className="text-xs text-muted-foreground">2h</span>}
                            </button>
                        ))}
                    </nav>
@@ -148,15 +163,22 @@ export default function ChatPage() {
                         <header className="flex items-center justify-between h-16 shrink-0 border-b px-6">
                             <div className="flex items-center gap-3">
                                 <Avatar>
-                                    <AvatarImage src={selectedUser.avatar} />
-                                    <AvatarFallback>{selectedUser.name?.charAt(0) || 'U'}</AvatarFallback>
+                                     {selectedUser.id === 'group' ? 
+                                     <AvatarFallback><Users/></AvatarFallback> :
+                                     <>
+                                        <AvatarImage src={selectedUser.avatar} />
+                                        <AvatarFallback>{selectedUser.name?.charAt(0) || 'U'}</AvatarFallback>
+                                     </>
+                                    }
                                 </Avatar>
                                 <div>
                                     <h2 className="text-lg font-semibold font-headline">{selectedUser.name}</h2>
-                                    <p className="text-sm text-muted-foreground">Online</p>
+                                    {selectedUser.id !== 'group' && <p className="text-sm text-muted-foreground">Online</p>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                               {selectedUser.id !== 'group' && (
+                                <>
                                 <Button variant="ghost" size="icon">
                                     <Phone className="h-5 w-5" />
                                     <span className="sr-only">Audio Call</span>
@@ -167,6 +189,8 @@ export default function ChatPage() {
                                         <span className="sr-only">Video Call</span>
                                     </Link>
                                 </Button>
+                               </>
+                               )}
                                 <Button variant="ghost" size="icon" asChild>
                                     <Link href="/members">
                                         <Users className="h-5 w-5" />
@@ -176,10 +200,10 @@ export default function ChatPage() {
                             </div>
                         </header>
                         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                            <MessageList />
+                            <MessageList chatId={selectedUser?.id} />
                         </div>
                         <div className="border-t p-4 bg-background">
-                            <MessageInput />
+                            <MessageInput chatId={selectedUser?.id} />
                         </div>
                     </>
                 ) : (

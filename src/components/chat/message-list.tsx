@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from "next/image";
 import { format } from 'date-fns';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Users } from 'lucide-react';
 
 interface Message {
     id: string;
@@ -32,8 +32,12 @@ const MessageSkeleton = () => (
     </div>
 );
 
+interface MessageListProps {
+    chatId?: string | null;
+}
 
-export default function MessageList() {
+
+export default function MessageList({ chatId }: MessageListProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -42,7 +46,19 @@ export default function MessageList() {
     const currentUser = auth.currentUser;
 
     useEffect(() => {
-        const q = query(collection(db, "chats", "rumenera", "messages"), orderBy("timestamp", "asc"));
+        if (!chatId) {
+            setLoading(false);
+            setMessages([]);
+            return;
+        };
+
+        setLoading(true);
+
+        const collectionPath = chatId === 'group'
+            ? 'chats/group/messages'
+            : `chats/private/${chatId}/messages`;
+
+        const q = query(collection(db, collectionPath), orderBy("timestamp", "asc"));
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const msgs: Message[] = [];
@@ -53,16 +69,20 @@ export default function MessageList() {
             setLoading(false);
         }, (err) => {
             console.error(err);
-            setError("Failed to fetch messages. Please check your connection and try again.");
+            setError("Failed to fetch messages.");
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [chatId]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    if (!chatId) {
+        return null;
+    }
 
     if (loading) {
         return (
@@ -80,6 +100,25 @@ export default function MessageList() {
                 <AlertDescription>{error}</AlertDescription>
             </Alert>
         );
+    }
+
+    if (messages.length === 0) {
+        return (
+             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
+                {chatId === 'group' ? (
+                   <>
+                    <Users className="h-12 w-12 mb-4"/>
+                    <h3 className="text-lg font-semibold">Welcome to the Family Group Chat!</h3>
+                    <p>Be the first to send a message to everyone.</p>
+                   </>
+                ) : (
+                    <>
+                    <h3 className="text-lg font-semibold">Start the conversation!</h3>
+                    <p>There are no messages here yet. Send one to get things started.</p>
+                    </>
+                )}
+            </div>
+        )
     }
 
     return (
@@ -114,7 +153,7 @@ export default function MessageList() {
                         </div>
                         {isCurrentUser && (
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={message.user.avatar} alt={message.user.name} />
+                                <AvatarImage src={currentUser?.photoURL ?? undefined} alt={message.user.name} />
                                 <AvatarFallback>{currentUser?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
                         )}

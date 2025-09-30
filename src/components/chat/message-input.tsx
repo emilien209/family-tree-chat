@@ -8,15 +8,24 @@ import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-export default function MessageInput() {
+interface MessageInputProps {
+    chatId?: string | null;
+}
+
+export default function MessageInput({ chatId }: MessageInputProps) {
     const [message, setMessage] = useState("");
     const { toast } = useToast();
 
     const sendMessage = async () => {
-        if (message.trim() === "" || !auth.currentUser) return;
+        if (message.trim() === "" || !auth.currentUser || !chatId) return;
+
+        // Determine if it's a private chat or group chat
+        const collectionPath = chatId === 'group' 
+            ? `chats/group/messages` 
+            : `chats/private/${chatId}/messages`;
 
         try {
-            await addDoc(collection(db, "chats", "rumenera", "messages"), {
+            await addDoc(collection(db, collectionPath), {
                 text: message,
                 timestamp: serverTimestamp(),
                 user: {
@@ -52,13 +61,14 @@ export default function MessageInput() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
+                disabled={!chatId}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" disabled={!chatId}>
                     <Paperclip className="h-5 w-5" />
                     <span className="sr-only">Attach file</span>
                 </Button>
-                <Button size="icon" onClick={sendMessage}>
+                <Button size="icon" onClick={sendMessage} disabled={!chatId || message.trim() === ""}>
                     <Send className="h-5 w-5" />
                     <span className="sr-only">Send message</span>
                 </Button>
