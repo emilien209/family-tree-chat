@@ -6,6 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Group } from "lucide-react";
+import { Group, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -35,6 +38,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -44,14 +48,30 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock login logic
-    console.log(values);
-    toast({
-      title: "Logged In!",
-      description: "Redirecting you to the family chat...",
-    });
-    router.push("/chat");
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Logged In!",
+        description: "Redirecting you to the family chat...",
+      });
+      router.push("/chat");
+    } catch (error: any) {
+      console.error(error);
+      let errorMessage = "An unknown error occurred.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = "Invalid email or password. Please try again.";
+      }
+      form.setError("root", { message: errorMessage });
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: errorMessage,
+      });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -97,8 +117,9 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Sign In
+              {form.formState.errors.root && <FormMessage>{form.formState.errors.root.message}</FormMessage>}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                 {isLoading ? <Loader2 className="animate-spin" /> : "Sign In"}
               </Button>
             </form>
           </Form>

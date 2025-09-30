@@ -6,6 +6,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { useState } from "react";
+
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +29,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Group, KeyRound } from "lucide-react";
+import { Group, KeyRound, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -39,6 +43,7 @@ const FAMILY_CODE = "rumenera";
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,7 +55,7 @@ export default function RegisterPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (values.familyCode.toLowerCase() !== FAMILY_CODE) {
       form.setError("familyCode", {
         type: "manual",
@@ -59,13 +64,33 @@ export default function RegisterPage() {
       return;
     }
 
-    // Mock registration logic
-    console.log(values);
-    toast({
-      title: "Account Created!",
-      description: "Welcome to the family! Redirecting...",
-    });
-    router.push("/chat");
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      await updateProfile(userCredential.user, {
+        displayName: values.fullName,
+      });
+
+      toast({
+        title: "Account Created!",
+        description: "Welcome to the family! Redirecting...",
+      });
+      router.push("/chat");
+    } catch (error: any) {
+      console.error(error);
+      let errorMessage = "An unknown error occurred.";
+       if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already in use. Please try another one or log in.';
+      }
+      form.setError("root", { message: errorMessage });
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: errorMessage,
+      });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -140,8 +165,9 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Create Account
+               {form.formState.errors.root && <FormMessage>{form.formState.errors.root.message}</FormMessage>}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                 {isLoading ? <Loader2 className="animate-spin" /> : "Create Account"}
               </Button>
             </form>
           </Form>
