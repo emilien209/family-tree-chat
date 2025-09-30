@@ -8,10 +8,7 @@ import MessageInput from "@/components/chat/message-input";
 import MessageList from "@/components/chat/message-list";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Phone, Video } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Users } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Phone, Video, Users } from "lucide-react";
 import Link from 'next/link';
 
 export default function ChatPage() {
@@ -39,18 +36,16 @@ export default function ChatPage() {
 
             setUserOnline();
 
-            // Attempt to set user offline on unload/close
             window.addEventListener('beforeunload', setUserOffline);
 
             return () => {
-                // This will run when component unmounts
                 setUserOffline();
                 window.removeEventListener('beforeunload', setUserOffline);
             };
         }
-    }, [user]);
+    }, [user, onlineUsersRef]);
 
-    const onlineMembers = onlineUsersSnapshot?.docs.map(doc => doc.data()) || [];
+    const onlineMembersCount = onlineUsersSnapshot?.docs.length || 0;
     
     return (
         <div className="flex flex-col h-screen">
@@ -61,36 +56,13 @@ export default function ChatPage() {
                             <AvatarImage src="https://picsum.photos/seed/group/40/40" />
                             <AvatarFallback>RT</AvatarFallback>
                         </Avatar>
-                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+                        {onlineMembersCount > 0 && <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background" />}
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold font-headline">Rumenera</h2>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                 <p className="text-sm text-muted-foreground cursor-pointer hover:underline">
-                                    {onlineMembers.length} member{onlineMembers.length !== 1 ? 's' : ''} online
-                                </p>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 p-2">
-                                <ScrollArea className="h-48">
-                                    <div className="space-y-2">
-                                         <h4 className="font-medium text-sm px-2">Online Members</h4>
-                                        {onlineMembers.map((member) => (
-                                            <div key={member.uid} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
-                                                <div className="relative">
-                                                     <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={member.avatar || `https://picsum.photos/seed/${member.uid}/40/40`} />
-                                                        <AvatarFallback>{member.name?.charAt(0) || 'U'}</AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
-                                                </div>
-                                                <span className="text-sm font-medium truncate">{member.name}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </ScrollArea>
-                            </PopoverContent>
-                        </Popover>
+                         <p className="text-sm text-muted-foreground">
+                            {loading ? 'Loading...' : `${onlineMembersCount} member${onlineMembersCount !== 1 ? 's' : ''} online`}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -102,6 +74,12 @@ export default function ChatPage() {
                         <Link href="/video-call">
                             <Video className="h-5 w-5" />
                             <span className="sr-only">Video Call</span>
+                        </Link>
+                    </Button>
+                     <Button variant="ghost" size="icon" asChild>
+                        <Link href="/members">
+                            <Users className="h-5 w-5" />
+                            <span className="sr-only">View Members</span>
                         </Link>
                     </Button>
                 </div>
