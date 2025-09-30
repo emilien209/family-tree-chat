@@ -8,7 +8,7 @@ import {
   User,
   LogOut,
   Group,
-  Settings,
+  Newspaper,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast"
 
 const navItems = [
   { href: "/chat", icon: MessageSquare, label: "Chat", notifications: 3 },
+  { href: "/feed", icon: Newspaper, label: "Family Feed", notifications: 0 },
   { href: "/events", icon: Calendar, label: "Events", notifications: 1 },
 ];
 
@@ -71,7 +72,7 @@ export default function Sidebar() {
             <Link href={item.href}>
               <item.icon className="mr-2 h-4 w-4" />
               {item.label}
-              {item.notifications && (
+              {item.notifications > 0 && (
                 <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs animation-bounce-subtle">
                   {item.notifications}
                 </span>

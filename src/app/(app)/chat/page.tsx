@@ -1,11 +1,13 @@
 import MessageInput from "@/components/chat/message-input";
 import MessageList from "@/components/chat/message-list";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Phone, Video } from "lucide-react";
 
 export default function ChatPage() {
     return (
         <div className="flex flex-col h-screen">
-            <header className="flex items-center h-16 shrink-0 border-b px-6">
+            <header className="flex items-center justify-between h-16 shrink-0 border-b px-6">
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Avatar>
@@ -18,6 +20,16 @@ export default function ChatPage() {
                         <h2 className="text-lg font-semibold font-headline">Rumenera</h2>
                         <p className="text-sm text-muted-foreground">4 members online</p>
                     </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon">
+                        <Phone className="h-5 w-5" />
+                        <span className="sr-only">Audio Call</span>
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                        <Video className="h-5 w-5" />
+                        <span className="sr-only">Video Call</span>
+                    </Button>
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
