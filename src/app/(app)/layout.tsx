@@ -1,3 +1,5 @@
+"use client";
+
 import Sidebar from "@/components/layout/sidebar";
 import AiChat from "@/components/layout/ai-chat";
 import { usePathname } from 'next/navigation';

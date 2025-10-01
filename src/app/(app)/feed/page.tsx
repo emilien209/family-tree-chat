@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
-import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
+
+const POSTS_PER_PAGE = 5;
 
 const PostSkeleton = () => (
   <Card className="bg-card border-border">
@@ -51,7 +53,7 @@ interface User {
 const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="relative w-full max-w-sm h-[90vh] bg-background rounded-lg overflow-hidden shadow-2xl">
-        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} fill objectFit="cover" />
+        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} fill objectFit="cover" loading="lazy"/>
         <div className="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
@@ -79,19 +81,72 @@ export default function FeedPage() {
   const [following, setFollowing] = useState<string[]>([]);
   const [selectedStoryUser, setSelectedStoryUser] = useState<User | null>(null);
 
+  const [posts, setPosts] = useState<DocumentData[]>([]);
+  const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const usersRef = collection(db, "users");
+  const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+        const postsRef = collection(db, "posts");
+        const q = query(postsRef, orderBy("timestamp", "desc"), limit(POSTS_PER_PAGE));
+        const documentSnapshots = await getDocs(q);
+
+        const newPosts = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPosts(newPosts);
+
+        const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
+        setLastVisible(lastDoc);
+
+        if (documentSnapshots.empty || documentSnapshots.size < POSTS_PER_PAGE) {
+            setHasMore(false);
+        }
+    } catch(e) {
+        console.error(e)
+    } finally {
+        setLoading(false);
+    }
+  }, []);
+
+  const fetchMorePosts = useCallback(async () => {
+    if (!lastVisible || !hasMore) return;
+    setLoadingMore(true);
+     try {
+        const postsRef = collection(db, "posts");
+        const q = query(postsRef, orderBy("timestamp", "desc"), startAfter(lastVisible), limit(POSTS_PER_PAGE));
+        const documentSnapshots = await getDocs(q);
+        
+        const newPosts = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPosts(prevPosts => [...prevPosts, ...newPosts]);
+
+        const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
+        setLastVisible(lastDoc);
+
+         if (documentSnapshots.empty || documentSnapshots.size < POSTS_PER_PAGE) {
+            setHasMore(false);
+        }
+    } catch(e) {
+        console.error(e)
+    } finally {
+        setLoadingMore(false);
+    }
+  }, [lastVisible, hasMore]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(newUser => {
       setUser(newUser);
     });
     return () => unsubscribe();
   }, []);
-
-  const postsRef = collection(db, "posts");
-  const q = query(postsRef, orderBy("timestamp", "desc"));
-  const [postsSnapshot, loading, error] = useCollection(q);
-  
-  const usersRef = collection(db, "users");
-  const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
 
   useEffect(() => {
     if (!user) return;
@@ -104,7 +159,6 @@ export default function FeedPage() {
 
   const stories = useMemo(() => {
     if (!usersSnapshot) return [];
-    // Show up to 8 users as stories, excluding the current user
     return usersSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as User))
         .filter(u => u.id !== user?.uid)
@@ -113,7 +167,6 @@ export default function FeedPage() {
 
   const suggestedUsers = useMemo(() => {
     if (!usersSnapshot || !user) return [];
-    // Suggest users that the current user is not already following
     return usersSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as User))
         .filter(u => u.id !== user.uid && !following.includes(u.id))
@@ -152,7 +205,7 @@ export default function FeedPage() {
         imageUrl = await getDownloadURL(snapshot.ref);
       }
 
-      await addDoc(postsRef, {
+      await addDoc(collection(db, 'posts'), {
         author: {
           name: user.displayName,
           avatar: user.photoURL,
@@ -161,7 +214,7 @@ export default function FeedPage() {
         content: postContent,
         imageUrl: imageUrl,
         likes: 0,
-        comments: [], // Initialize comments as an empty array
+        comments: [],
         timestamp: serverTimestamp(),
       });
       setPostContent("");
@@ -169,6 +222,7 @@ export default function FeedPage() {
       if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
+    fetchPosts(); // Refresh posts
     } catch (err) {
       console.error("Error creating post: ", err);
       toast({
@@ -182,7 +236,7 @@ export default function FeedPage() {
   };
 
     const handleLikePost = async (postId: string, authorId: string) => {
-        if (!user || user.uid === authorId) return; // Can't like your own post or if not logged in
+        if (!user || user.uid === authorId) return; 
         
         const postRef = doc(db, "posts", postId);
         const likeRef = doc(postRef, "likes", user.uid);
@@ -191,14 +245,17 @@ export default function FeedPage() {
         try {
             const likeDoc = await getDoc(likeRef);
             if (likeDoc.exists()) {
-                // Unlike
                 await deleteDoc(likeRef);
+                 await updateDoc(postRef, {
+                    likes: increment(-1)
+                });
             } else {
-                // Like
                 await setDoc(likeRef, {
                     timestamp: serverTimestamp()
                 });
-                // Add notification for the post author
+                await updateDoc(postRef, {
+                    likes: increment(1)
+                });
                 await addDoc(notificationRef, {
                     type: "like",
                     from: {
@@ -206,30 +263,17 @@ export default function FeedPage() {
                         avatar: user.photoURL,
                         uid: user.uid,
                     },
-                    post: {
-                        id: postId,
-                    },
+                    post: { id: postId },
                     read: false,
                     timestamp: serverTimestamp()
                 });
             }
+             setPosts(posts.map(p => p.id === postId ? {...p, likes: p.likes + (likeDoc.exists() ? -1 : 1)} : p));
         } catch (err) {
             console.error("Error liking post: ", err);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Could not update like status.",
-            });
         }
     };
   
-  const posts = useMemo(() => {
-    if (!postsSnapshot) return [];
-    const twentyFourHoursAgo = subHours(new Date(), 24);
-    return postsSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(post => post.timestamp && post.timestamp.toDate() > twentyFourHoursAgo);
-  }, [postsSnapshot]);
 
     const handleFollow = async (targetUserId: string) => {
         if (!user) return;
@@ -243,14 +287,11 @@ export default function FeedPage() {
             const isFollowing = following.includes(targetUserId);
 
             if (isFollowing) {
-                // Unfollow
                 await deleteDoc(followingRef);
                 await deleteDoc(followersRef);
             } else {
-                // Follow
                 await setDoc(followingRef, { timestamp: serverTimestamp() });
                 await setDoc(followersRef, { timestamp: serverTimestamp() });
-                // Add notification for the followed user
                  await addDoc(notificationRef, {
                     type: "follow",
                     from: {
@@ -264,11 +305,6 @@ export default function FeedPage() {
             }
         } catch (error) {
             console.error("Error following/unfollowing user:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not update follow status.',
-            });
         }
     };
 
@@ -277,7 +313,6 @@ export default function FeedPage() {
     {selectedStoryUser && <StoryViewer user={selectedStoryUser} onClose={() => setSelectedStoryUser(null)} />}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-4 md:p-6 max-w-6xl mx-auto">
         <div className="md:col-span-2 space-y-6">
-            {/* Stories */}
             <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
                 {usersLoading && [...Array(8)].map((_, i) => (
                     <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
@@ -299,7 +334,6 @@ export default function FeedPage() {
                 ))}
             </div>
 
-             {/* Create Post */}
             <Card className="bg-card border-border">
                 <CardHeader>
                     <div className="flex items-center gap-4">
@@ -319,7 +353,7 @@ export default function FeedPage() {
                 <CardContent className="pt-0">
                     {postImage && (
                         <div className="relative w-fit mx-auto mb-4">
-                            <Image src={postImage} alt="Preview" width={400} height={400} className="rounded-md object-cover max-h-[300px]" />
+                            <Image src={postImage} alt="Preview" width={400} height={400} className="rounded-md object-cover max-h-[300px]" loading="lazy" />
                             <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
                                 <X className="h-4 w-4" />
                             </Button>
@@ -344,7 +378,6 @@ export default function FeedPage() {
             </Card>
 
 
-            {/* Feed */}
             {loading && (
                 <div className="space-y-6">
                 <PostSkeleton />
@@ -352,18 +385,10 @@ export default function FeedPage() {
                 </div>
             )}
 
-            {error && (
-                <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error Loading Feed</AlertTitle>
-                <AlertDescription>Could not load posts. Please check your connection and try again.</AlertDescription>
-                </Alert>
-            )}
-
             {!loading && posts.length === 0 && (
                 <Card className="bg-card border-border">
                 <CardContent className="p-6 text-center text-muted-foreground">
-                    <p>No posts in the last 24 hours.</p>
+                    <p>No posts yet.</p>
                     <p className="text-sm">Be the first to share something!</p>
                 </CardContent>
                 </Card>
@@ -391,7 +416,7 @@ export default function FeedPage() {
                 
                 {post.imageUrl && (
                     <CardContent className="p-0">
-                        <Image src={post.imageUrl} alt="Post image" width={700} height={700} className="w-full object-cover aspect-square" />
+                        <Image src={post.imageUrl} alt="Post image" width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />
                     </CardContent>
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
@@ -413,6 +438,13 @@ export default function FeedPage() {
                 </CardFooter>
                 </Card>
             ))}
+
+            {hasMore && !loading && (
+                <Button onClick={fetchMorePosts} disabled={loadingMore} variant="outline" className="w-full">
+                    {loadingMore ? <Loader2 className="animate-spin" /> : "Load More"}
+                </Button>
+            )}
+
         </div>
         <div className="hidden md:block space-y-6">
              <Card className="bg-card border-border">
@@ -461,19 +493,9 @@ export default function FeedPage() {
                 <span>Jobs</span>
                 <span>Privacy</span>
                 <span>Terms</span>
-                <p className="mt-4">&copy; 2024 Family Tree Chat</p>
+                <p className="mt-4">&copy; 2024 Family Chat</p>
             </footer>
         </div>
     </div>
     </>
   )
-
-    
-
-
-
-    
-
-    
-
-

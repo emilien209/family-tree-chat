@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
 export default function CreatePage() {
   const { toast } = useToast();
@@ -23,6 +24,7 @@ export default function CreatePage() {
   const [caption, setCaption] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,6 +46,7 @@ export default function CreatePage() {
   const removeMedia = () => {
     setMediaFile(null);
     setImageUrl("");
+    setUploadProgress(0);
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -53,23 +56,59 @@ export default function CreatePage() {
     if (!mediaFile || !user) return;
 
     setIsPosting(true);
+    setUploadProgress(0);
     try {
       let finalImageUrl = mediaFile;
-      // If it's a data URL, upload to storage
+      
       if (mediaFile.startsWith('data:')) {
         const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
-        const snapshot = await uploadString(storageRef, mediaFile, 'data_url');
-        finalImageUrl = await getDownloadURL(snapshot.ref);
+        const uploadTask = uploadBytesResumable(storageRef, mediaFile, 'data_url');
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                console.error("Upload failed:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Upload Error",
+                    description: "Could not upload the file. Please try again.",
+                });
+                setIsPosting(false);
+            },
+            async () => {
+                finalImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                await createFirestoreDoc(finalImageUrl);
+            }
+        );
+      } else {
+        // It's a URL, no need to upload
+        await createFirestoreDoc(finalImageUrl);
       }
       
-      await addDoc(collection(db, "posts"), {
+    } catch (err) {
+      console.error("Error creating post: ", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not create post. Please try again.",
+      });
+      setIsPosting(false);
+    }
+  };
+
+  const createFirestoreDoc = async (imageUrl: string) => {
+    if (!user) return;
+     await addDoc(collection(db, "posts"), {
         author: {
           name: user.displayName,
           avatar: user.photoURL,
           uid: user.uid,
         },
         content: caption,
-        imageUrl: finalImageUrl,
+        imageUrl: imageUrl,
         likes: 0,
         comments: [],
         timestamp: serverTimestamp(),
@@ -81,18 +120,8 @@ export default function CreatePage() {
       });
 
       router.push('/feed');
-
-    } catch (err) {
-      console.error("Error creating post: ", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Could not create post. Please try again.",
-      });
-    } finally {
       setIsPosting(false);
-    }
-  };
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -114,10 +143,11 @@ export default function CreatePage() {
               <div className="space-y-4">
                 <div className="relative w-full aspect-square">
                   <Image src={mediaFile} alt="Preview" fill className="rounded-md object-cover" />
-                   <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}>
+                   <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia} disabled={isPosting}>
                       <X className="h-4 w-4" />
                    </Button>
                 </div>
+                { isPosting && <Progress value={uploadProgress} className="w-full mt-2" />}
                 <Textarea 
                   placeholder="Write a caption..." 
                   value={caption}
