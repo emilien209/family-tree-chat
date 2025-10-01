@@ -461,7 +461,7 @@ export default function FeedPage() {
                 <span>Jobs</span>
                 <span>Privacy</span>
                 <span>Terms</span>
-                <p className="mt-4">&copy; 2024 Rumenera Family Tree</p>
+                <p className="mt-4">&copy; 2024 Family Tree Chat</p>
             </footer>
         </div>
     </div>
@@ -475,4 +475,5 @@ export default function FeedPage() {
     
 
     
+
 
