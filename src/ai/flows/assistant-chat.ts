@@ -42,8 +42,8 @@ Your role is to:
 User's question: {{{question}}}
 
 Based on the question, provide a clear, helpful, and concise response.
-If you are suggesting ideas, present them in a list.
-Your response should be formatted for a chat interface.
+If you are suggesting ideas, present them in a list format.
+Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.
 `,
 });
 

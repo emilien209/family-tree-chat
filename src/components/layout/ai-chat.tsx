@@ -56,6 +56,7 @@ export default function AiChat() {
       const botMessage: Message = { role: "bot", content: result.response };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
+        console.error("AI Chat Error:", error);
       const errorMessage: Message = {
         role: "bot",
         content: "Sorry, I had trouble finding an answer. Please try again.",
@@ -121,14 +122,14 @@ export default function AiChat() {
                         <AvatarFallback><Bot size={18} /></AvatarFallback>
                     </Avatar>
                   )}
-                  <p className={cn(
-                    "rounded-lg px-3 py-2 text-sm max-w-[80%]",
+                  <div className={cn(
+                    "rounded-lg px-3 py-2 text-sm max-w-[80%] prose prose-sm",
                     message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                   )}>
                     {message.content.split('\n').map((line, i) => (
                         <span key={i}>{line}<br/></span>
                     ))}
-                  </p>
+                  </div>
                    {message.role === "user" && (
                     <Avatar className="w-8 h-8">
                         <AvatarFallback><User size={18} /></AvatarFallback>
@@ -162,7 +163,7 @@ export default function AiChat() {
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
               onClick={handleSend}
-              disabled={isLoading}
+              disabled={isLoading || input.trim() === ''}
             >
               <Send className="h-4 w-4" />
             </Button>
