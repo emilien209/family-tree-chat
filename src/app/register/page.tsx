@@ -73,7 +73,7 @@ export default function RegisterPage() {
       
       await updateProfile(user, {
         displayName: values.fullName,
-        photoURL: null,
+        photoURL: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
       });
 
       // Save user info to Firestore 'users' collection
@@ -81,14 +81,14 @@ export default function RegisterPage() {
         name: values.fullName,
         email: user.email,
         uid: user.uid,
-        avatar: null
+        avatar: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080'
       });
 
       toast({
         title: "Account Created!",
         description: "Welcome to the family! Redirecting...",
       });
-      router.push("/chat");
+      router.push("/feed");
     } catch (error: any) {
       console.error("Registration Error:", error.code);
       let errorMessage = "An unknown error occurred during registration.";
@@ -116,7 +116,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">
-              <Image src="/logo.png" alt="Family Tree Chat Logo" width={64} height={64} />
+              <Image src="/logo.png" alt="Family Tree Chat Logo" width={80} height={80} />
             </div>
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
           <CardDescription>
@@ -200,5 +200,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
-    

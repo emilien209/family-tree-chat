@@ -57,7 +57,7 @@ export default function LoginPage() {
         title: "Logged In!",
         description: "Redirecting you to the family chat...",
       });
-      router.push("/chat");
+      router.push("/feed");
     } catch (error: any) {
       console.error("Login Error:", error.code);
       let errorMessage = "An unknown error occurred.";
@@ -82,7 +82,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-             <Image src="/logo.png" alt="Family Tree Chat Logo" width={64} height={64} />
+             <Image src="/logo.png" alt="Family Tree Chat Logo" width={80} height={80} />
           </div>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>
@@ -137,5 +137,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

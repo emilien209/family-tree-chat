@@ -12,7 +12,7 @@ import {
   Calendar,
   Target,
   Users,
-  Menu,
+  LogOut,
   Grid,
 } from "lucide-react"
 
@@ -25,6 +25,16 @@ import { useToast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
 import { collection, query, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import Image from "next/image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreHorizontal } from "lucide-react"
+
 
 
 const mainNavItems = [
@@ -91,8 +101,8 @@ export default function Sidebar() {
   return (
     <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
       <div className="flex items-center gap-2 pb-4 border-b mb-4">
-        <Image src="/logo.png" alt="Family Chat Logo" width={40} height={40} />
-        <h1 className="text-2xl font-bold font-serif">Family Chat</h1>
+        <Image src="/logo.png" alt="Family Chat Logo" width={48} height={48} />
+        <h1 className="text-xl font-bold font-serif">Family Tree Chat</h1>
       </div>
 
       <nav className="flex-1 space-y-1">
@@ -152,10 +162,22 @@ export default function Sidebar() {
 
         <div className="border-t -mx-4 my-2"></div>
 
-        <Button variant="ghost" className="w-full justify-start text-base" onClick={handleLogout}>
-          <Menu className="mr-4 h-6 w-6" />
-          More
-        </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                 <Button variant="ghost" className="w-full justify-start text-base">
+                    <MoreHorizontal className="mr-4 h-6 w-6" />
+                    More
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" side="top">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   )
