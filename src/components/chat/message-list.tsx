@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,7 +19,7 @@ interface Message {
         uid: string;
     };
     text?: string;
-    image?: string;
+    imageUrl?: string;
     timestamp: Timestamp | null;
 }
 
@@ -138,13 +139,13 @@ export default function MessageList({ chatId }: MessageListProps) {
                         <div className={`flex flex-col gap-1 ${isCurrentUser ? 'items-end' : 'items-start'}`}>
                             <div className={`rounded-lg p-3 max-w-xs md:max-w-md lg:max-w-lg ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 {!isCurrentUser && <p className="font-semibold text-sm mb-1">{message.user.name}</p>}
-                                {message.image && (
+                                {message.imageUrl && (
                                     <Image
-                                        src={message.image}
+                                        src={message.imageUrl}
                                         alt="Shared media"
                                         width={400}
                                         height={300}
-                                        className="rounded-md mb-2 object-cover"
+                                        className="rounded-md my-2 object-cover"
                                     />
                                 )}
                                 {message.text && <p className="text-sm">{message.text}</p>}
@@ -164,3 +165,5 @@ export default function MessageList({ chatId }: MessageListProps) {
         </div>
     );
 }
+
+    

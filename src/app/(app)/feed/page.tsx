@@ -70,6 +70,14 @@ const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => 
     </div>
 );
 
+const PostMedia = ({ src, alt }: { src: string; alt: string }) => {
+    const isVideo = src.includes('.mp4') || src.includes('video');
+    if (isVideo) {
+        return <video src={src} controls className="w-full object-cover aspect-square" />;
+    }
+    return <Image src={src} alt={alt} width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />;
+};
+
 
 export default function FeedPage() {
   const { toast } = useToast();
@@ -416,7 +424,7 @@ export default function FeedPage() {
                 
                 {post.imageUrl && (
                     <CardContent className="p-0">
-                        <Image src={post.imageUrl} alt="Post image" width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />
+                         <PostMedia src={post.imageUrl} alt={post.content || 'Post media'} />
                     </CardContent>
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
@@ -499,3 +507,5 @@ export default function FeedPage() {
     </div>
     </>
   )
+
+    

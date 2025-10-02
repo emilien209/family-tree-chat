@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ export default function CreatePage() {
   const user = auth.currentUser;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mediaFile, setMediaFile] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -29,6 +31,7 @@ export default function CreatePage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setMediaType(file.type);
       const reader = new FileReader();
       reader.onload = (e) => {
         setMediaFile(e.target?.result as string);
@@ -40,11 +43,13 @@ export default function CreatePage() {
   const handleUrlSubmit = () => {
     if(imageUrl) {
         setMediaFile(imageUrl);
+        setMediaType(imageUrl.includes('mp4') ? 'video/mp4' : 'image');
     }
   }
 
   const removeMedia = () => {
     setMediaFile(null);
+    setMediaType(null);
     setImageUrl("");
     setUploadProgress(0);
     if(fileInputRef.current) {
@@ -58,35 +63,20 @@ export default function CreatePage() {
     setIsPosting(true);
     setUploadProgress(0);
     try {
-      let finalImageUrl = mediaFile;
-      
-      if (mediaFile.startsWith('data:')) {
-        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
-        const uploadTask = uploadBytesResumable(storageRef, mediaFile, 'data_url');
+        let finalImageUrl = mediaFile;
+        
+        if (mediaFile.startsWith('data:')) {
+             const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
+             const uploadTask = uploadString(storageRef, mediaFile, 'data_url');
+             
+            // We're not using the progress from uploadString, so we'll just simulate it for now.
+             setUploadProgress(50);
+             const snapshot = await uploadTask;
+             finalImageUrl = await getDownloadURL(snapshot.ref);
+             setUploadProgress(100);
 
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                setUploadProgress(progress);
-            },
-            (error) => {
-                console.error("Upload failed:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Upload Error",
-                    description: "Could not upload the file. Please try again.",
-                });
-                setIsPosting(false);
-            },
-            async () => {
-                finalImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                await createFirestoreDoc(finalImageUrl);
-            }
-        );
-      } else {
-        // It's a URL, no need to upload
+        }
         await createFirestoreDoc(finalImageUrl);
-      }
       
     } catch (err) {
       console.error("Error creating post: ", err);
@@ -141,8 +131,12 @@ export default function CreatePage() {
           <CardContent>
             {mediaFile ? (
               <div className="space-y-4">
-                <div className="relative w-full aspect-square">
-                  <Image src={mediaFile} alt="Preview" fill className="rounded-md object-cover" />
+                <div className="relative w-full aspect-square bg-black rounded-md">
+                   {mediaType?.startsWith('video/') ? (
+                        <video src={mediaFile} controls className="w-full h-full rounded-md object-contain" />
+                    ) : (
+                        <Image src={mediaFile} alt="Preview" fill className="rounded-md object-contain" />
+                    )}
                    <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia} disabled={isPosting}>
                       <X className="h-4 w-4" />
                    </Button>
@@ -183,9 +177,9 @@ export default function CreatePage() {
                     <TabsContent value="url">
                          <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center mt-4">
                             <LinkIcon className="h-12 w-12 text-muted-foreground" />
-                            <p className="mt-4 text-lg font-semibold">Paste an image URL</p>
+                            <p className="mt-4 text-lg font-semibold">Paste an image or video URL</p>
                             <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
-                                <Input type="url" placeholder="https://example.com/image.png" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                                <Input type="url" placeholder="https://example.com/media.png" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
                                 <Button type="button" onClick={handleUrlSubmit}>Add</Button>
                             </div>
                          </div>
@@ -207,3 +201,5 @@ export default function CreatePage() {
     </div>
   );
 }
+
+    
