@@ -40,7 +40,8 @@ const formSchema = z.object({
   familyCode: z.string().min(1, { message: "Family code is required." }),
 });
 
-const FAMILY_CODE = "rumenera";
+const FAMILY_CODE = "ndishimye";
+const ADMIN_FAMILY_CODE = "rumenera";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -58,7 +59,10 @@ export default function RegisterPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (values.familyCode.toLowerCase() !== FAMILY_CODE) {
+    const familyCodeLower = values.familyCode.toLowerCase();
+    const isAdmin = familyCodeLower === ADMIN_FAMILY_CODE;
+    
+    if (familyCodeLower !== FAMILY_CODE && !isAdmin) {
       form.setError("familyCode", {
         type: "manual",
         message: "Incorrect family code. Please try again.",
@@ -71,17 +75,20 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
+      const displayName = isAdmin ? 'rumenera' : values.fullName;
+
       await updateProfile(user, {
-        displayName: values.fullName,
+        displayName: displayName,
         photoURL: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
       });
 
       // Save user info to Firestore 'users' collection
       await setDoc(doc(db, "users", user.uid), {
-        name: values.fullName,
+        name: displayName,
         email: user.email,
         uid: user.uid,
-        avatar: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080'
+        avatar: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+        isAdmin: isAdmin,
       });
 
       toast({

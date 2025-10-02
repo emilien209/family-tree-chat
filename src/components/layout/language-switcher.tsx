@@ -26,7 +26,7 @@ export default function LanguageSwitcher() {
     setSelectedLanguage(lang);
     toast({
         title: "Language Switched",
-        description: `Language has been set to ${lang.name}.`,
+        description: `Language has been set to ${lang.name}. Full app translation is a work in progress.`,
     });
   };
 
