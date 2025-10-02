@@ -13,7 +13,7 @@ import { db, auth, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 const ReelItem = ({ reel }: { reel: DocumentData }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
