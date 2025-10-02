@@ -89,23 +89,25 @@ export default function ChatPage() {
     const contactList = useMemo(() => {
         if (!usersSnapshot) return [];
         const allUsersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as User]));
-        const contacts = new Set<User>();
         
+        // Use a map to ensure unique contacts by ID
+        const contactsMap = new Map<string, User>();
+
         // Add group chat
-        contacts.add({id: 'group', name: 'Family Group Chat'})
+        contactsMap.set('group', {id: 'group', name: 'Family Group Chat'});
 
         // Add followed users
-        followedUsers.forEach(u => contacts.add(u));
+        followedUsers.forEach(u => contactsMap.set(u.id, u));
 
         // If an initial user is selected via URL, add them to the list if not already present
         if (initialUserId) {
             const initialUser = allUsersMap.get(initialUserId);
             if (initialUser) {
-                contacts.add(initialUser);
+                contactsMap.set(initialUser.id, initialUser);
             }
         }
         
-        return Array.from(contacts);
+        return Array.from(contactsMap.values());
 
     }, [usersSnapshot, followedUsers, initialUserId]);
 
