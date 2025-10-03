@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -17,25 +18,27 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { auth, db } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
-import { collection, query, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import Image from "next/image"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
-
-
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  SidebarSeparator,
+} from "@/components/ui/sidebar"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Button } from "../ui/button"
 
 const mainNavItems = [
   { href: "/feed", icon: Home, label: "Home" },
@@ -53,7 +56,7 @@ const secondaryNavItems = [
   { href: "/members", icon: Users, label: "Members" },
 ]
 
-export default function Sidebar() {
+export default function NewSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { toast } = useToast()
@@ -99,86 +102,72 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
-      <div className="flex items-center gap-2 pb-4 border-b mb-4">
-        <Image src="/logo.png" alt="Family Chat Logo" width={48} height={48} />
-        <h1 className="text-xl font-bold font-serif">Family Tree Chat</h1>
-      </div>
-
-      <nav className="flex-1 space-y-1">
-        {mainNavItems.map((item) => {
-            const notifications = item.href === '/chat' ? messageNotifications : 0;
-            return (
-          <Button
-            key={item.label}
-            variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-            className="w-full justify-start text-base"
-            asChild
-          >
-            <Link href={item.href}>
-              <item.icon className="mr-4 h-6 w-6" />
-              {item.label}
-              {notifications > 0 && (
-                <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white text-xs">
-                  {notifications}
-                </span>
-              )}
-            </Link>
-          </Button>
-        )})}
-         <Button
-            variant={pathname.startsWith('/profile') ? "secondary" : "ghost"}
-            className="w-full justify-start text-base"
-            asChild
-          >
-            <Link href="/profile">
-                <Avatar className="mr-4 h-6 w-6">
-                  <AvatarImage src={user?.photoURL || undefined} />
-                  <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-              </Avatar>
-               Profile
-            </Link>
-        </Button>
-      </nav>
-
-      <div className="mt-auto flex flex-col gap-2">
-         <div className="border-t -mx-4 my-2"></div>
-         <h3 className="px-4 text-sm font-semibold text-muted-foreground">Family Space</h3>
-         <nav className="flex-1 space-y-1">
-            {secondaryNavItems.map((item) => (
-            <Button
-                key={item.label}
-                variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-                className="w-full justify-start text-base"
-                asChild
-            >
-                <Link href={item.href}>
-                <item.icon className="mr-4 h-6 w-6" />
-                {item.label}
-                </Link>
-            </Button>
-            ))}
-        </nav>
-
-        <div className="border-t -mx-4 my-2"></div>
-
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                 <Button variant="ghost" className="w-full justify-start text-base">
-                    <MoreHorizontal className="mr-4 h-6 w-6" />
-                    More
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" side="top">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </aside>
+    <Sidebar collapsible="icon">
+        <SidebarHeader>
+             <div className={cn("flex items-center gap-2", "group-data-[collapsible=icon]:hidden")}>
+                <Image src="/logo.png" alt="Family Chat Logo" width={40} height={40} />
+                <h1 className="text-lg font-bold font-serif">Family Tree Chat</h1>
+            </div>
+             <div className={cn("hidden items-center gap-2", "group-data-[collapsible=icon]:flex")}>
+                <Image src="/logo.png" alt="Family Chat Logo" width={32} height={32} />
+            </div>
+        </SidebarHeader>
+        <SidebarContent>
+            <SidebarMenu>
+                {mainNavItems.map((item) => {
+                    const notifications = item.href === '/chat' ? messageNotifications : 0;
+                    return (
+                        <SidebarMenuItem key={item.label}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                    {notifications > 0 && <SidebarMenuBadge>{notifications}</SidebarMenuBadge>}
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    )
+                })}
+                 <SidebarMenuItem>
+                    <Link href="/profile">
+                        <SidebarMenuButton isActive={pathname.startsWith('/profile')} tooltip="Profile">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={user?.photoURL || undefined} />
+                                <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span>Profile</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="mt-auto">
+            <SidebarSeparator />
+            <SidebarGroup>
+                <span className="px-2 text-xs font-medium text-muted-foreground">Family Space</span>
+                <SidebarMenu>
+                    {secondaryNavItems.map((item) => (
+                        <SidebarMenuItem key={item.label}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8" onClick={handleLogout}>
+                        <LogOut className="group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4" />
+                        <span className="group-data-[collapsible=icon]:hidden">Log out</span>
+                    </Button>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarFooter>
+    </Sidebar>
   )
 }

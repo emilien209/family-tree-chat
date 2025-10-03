@@ -1,8 +1,10 @@
+
 "use client";
 
-import Sidebar from "@/components/layout/sidebar";
+import NewSidebar from "@/components/layout/sidebar";
 import AiChat from "@/components/layout/ai-chat";
 import { usePathname } from 'next/navigation';
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 
 interface AppLayoutProps {
@@ -16,12 +18,16 @@ export default function AppLayout({
     const showAiChat = !pathname.startsWith('/chat');
 
   return (
-    <div className="flex min-h-screen w-full bg-transparent text-foreground">
-      <Sidebar />
-      <main className="flex-1 flex flex-col">
-        {children}
-      </main>
-      {showAiChat && <AiChat />}
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-transparent text-foreground">
+        <NewSidebar />
+        <SidebarInset>
+          <main className="flex-1 flex flex-col h-screen">
+            {children}
+          </main>
+        </SidebarInset>
+        {showAiChat && <AiChat />}
+      </div>
+    </SidebarProvider>
   );
 }
