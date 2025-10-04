@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileoverview An AI assistant for the Family Tree Chat application.
@@ -8,7 +9,7 @@
  */
 
 import { ai, googleAI } from '@/ai/genkit';
-import { z } from 'genkit/zod';
+import { z } from 'zod';
 
 export const AssistantInputSchema = z.object({
   history: z.array(z.any()).optional(),
