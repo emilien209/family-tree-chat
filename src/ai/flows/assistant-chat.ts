@@ -8,19 +8,19 @@
  * - AssistantOutput - The return type for the askAssistant function.
  */
 
-import { ai, googleAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const AssistantInputSchema = z.object({
+const AssistantInputSchema = z.object({
   history: z.array(z.any()).optional(),
   prompt: z.string(),
 });
-export type AssistantInput = z.infer<typeof AssistantInputSchema>;
+type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
-export const AssistantOutputSchema = z.object({
+const AssistantOutputSchema = z.object({
   response: z.string(),
 });
-export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
+type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 const assistantPrompt = ai.definePrompt(
     {
