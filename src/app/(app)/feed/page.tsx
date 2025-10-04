@@ -3,7 +3,7 @@
 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button"
@@ -78,6 +78,87 @@ const PostMedia = ({ src, alt }: { src: string; alt: string }) => {
     return <Image src={src} alt={alt} width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />;
 };
 
+const PostComments = ({ post }: { post: any }) => {
+  const [comment, setComment] = useState("");
+  const [isCommenting, setIsCommenting] = useState(false);
+  const user = auth.currentUser;
+  const { toast } = useToast();
+
+  const handlePostComment = async () => {
+    if (!user || comment.trim() === "") return;
+    setIsCommenting(true);
+
+    const postRef = doc(db, "posts", post.id);
+    const notificationRef = collection(db, "users", post.author.uid, "notifications");
+
+    try {
+      await updateDoc(postRef, {
+        comments: arrayUnion({
+          user: {
+            name: user.displayName,
+            avatar: user.photoURL,
+            uid: user.uid,
+          },
+          text: comment,
+          timestamp: serverTimestamp(),
+        })
+      });
+
+      if (user.uid !== post.author.uid) {
+        await addDoc(notificationRef, {
+          type: "comment",
+          from: {
+            name: user.displayName,
+            avatar: user.photoURL,
+            uid: user.uid,
+          },
+          post: { id: post.id },
+          comment: comment.length > 50 ? `${comment.substring(0, 50)}...` : comment,
+          read: false,
+          timestamp: serverTimestamp(),
+        });
+      }
+
+      setComment("");
+
+    } catch (err) {
+      console.error("Error posting comment: ", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not post your comment.",
+      });
+    } finally {
+      setIsCommenting(false);
+    }
+  };
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground cursor-pointer hover:underline">
+        View all {post.comments?.length || 0} comments
+      </p>
+      {post.comments?.slice(-2).map((c: any, index: number) => (
+        <p key={index} className="text-sm">
+          <span className="font-semibold mr-1">{c.user.name}</span>{c.text}
+        </p>
+      ))}
+      <div className="w-full flex items-center gap-2 pt-2">
+        <Input
+          placeholder="Add a comment..."
+          className="bg-transparent border-none text-sm focus-visible:ring-0"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          disabled={isCommenting}
+        />
+        <Button variant="ghost" size="sm" onClick={handlePostComment} disabled={isCommenting || comment.trim() === ''}>
+          {isCommenting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post"}
+        </Button>
+      </div>
+    </>
+  );
+};
+
 
 export default function FeedPage() {
   const { toast } = useToast();
@@ -103,20 +184,25 @@ export default function FeedPage() {
     try {
         const postsRef = collection(db, "posts");
         const q = query(postsRef, orderBy("timestamp", "desc"), limit(POSTS_PER_PAGE));
-        const documentSnapshots = await getDocs(q);
+        
+        const unsubscribe = onSnapshot(q, (documentSnapshots) => {
+          const newPosts = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setPosts(newPosts);
 
-        const newPosts = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPosts(newPosts);
+          const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
+          setLastVisible(lastDoc);
 
-        const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
-        setLastVisible(lastDoc);
+          if (documentSnapshots.empty || documentSnapshots.size < POSTS_PER_PAGE) {
+              setHasMore(false);
+          } else {
+              setHasMore(true);
+          }
+          setLoading(false);
+        });
 
-        if (documentSnapshots.empty || documentSnapshots.size < POSTS_PER_PAGE) {
-            setHasMore(false);
-        }
+        return () => unsubscribe();
     } catch(e) {
         console.error(e)
-    } finally {
         setLoading(false);
     }
   }, []);
@@ -146,7 +232,12 @@ export default function FeedPage() {
   }, [lastVisible, hasMore]);
 
   useEffect(() => {
-    fetchPosts();
+    const unsub = fetchPosts();
+    // This is to make sure we clean up the onSnapshot listener
+    // But since fetchPosts returns a promise of a function, we handle it this way
+    return () => {
+      unsub.then(cleanup => cleanup && cleanup());
+    }
   }, [fetchPosts]);
 
   useEffect(() => {
@@ -230,7 +321,7 @@ export default function FeedPage() {
       if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-    fetchPosts(); // Refresh posts
+    // No need to call fetchPosts manually, onSnapshot will handle it.
     } catch (err) {
       console.error("Error creating post: ", err);
       toast({
@@ -244,7 +335,7 @@ export default function FeedPage() {
   };
 
     const handleLikePost = async (postId: string, authorId: string) => {
-        if (!user || user.uid === authorId) return; 
+        if (!user) return; 
         
         const postRef = doc(db, "posts", postId);
         const likeRef = doc(postRef, "likes", user.uid);
@@ -264,19 +355,21 @@ export default function FeedPage() {
                 await updateDoc(postRef, {
                     likes: increment(1)
                 });
-                await addDoc(notificationRef, {
-                    type: "like",
-                    from: {
-                        name: user.displayName,
-                        avatar: user.photoURL,
-                        uid: user.uid,
-                    },
-                    post: { id: postId },
-                    read: false,
-                    timestamp: serverTimestamp()
-                });
+                // Do not send notification if liking your own post
+                if(user.uid !== authorId) {
+                  await addDoc(notificationRef, {
+                      type: "like",
+                      from: {
+                          name: user.displayName,
+                          avatar: user.photoURL,
+                          uid: user.uid,
+                      },
+                      post: { id: postId },
+                      read: false,
+                      timestamp: serverTimestamp()
+                  });
+                }
             }
-             setPosts(posts.map(p => p.id === postId ? {...p, likes: p.likes + (likeDoc.exists() ? -1 : 1)} : p));
         } catch (err) {
             console.error("Error liking post: ", err);
         }
@@ -438,11 +531,7 @@ export default function FeedPage() {
                      </div>
                      <p className="font-semibold text-sm">{post.likes} likes</p>
                     {post.content && <p className="text-sm"><span className="font-semibold mr-1">{post.author.name}</span>{post.content}</p>}
-                    <p className="text-xs text-muted-foreground cursor-pointer hover:underline">View all {post.comments?.length || 0} comments</p>
-                     <div className="w-full flex items-center gap-2 pt-2">
-                        <Input placeholder="Add a comment..." className="bg-transparent border-none text-sm focus-visible:ring-0" />
-                        <Button variant="ghost" size="sm">Post</Button>
-                    </div>
+                    <PostComments post={post} />
                 </CardFooter>
                 </Card>
             ))}
@@ -508,3 +597,5 @@ export default function FeedPage() {
     </>
   )
 }
+
+    

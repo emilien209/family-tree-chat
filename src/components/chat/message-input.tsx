@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast";
 import { db, auth, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, runTransaction, getDocs } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, runTransaction, getDocs, setDoc } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 
 interface MessageInputProps {
@@ -20,6 +20,21 @@ export default function MessageInput({ chatId, otherUserId }: MessageInputProps)
     const { toast } = useToast();
     const currentUser = auth.currentUser;
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const createNotification = async (targetUserId: string, isGroup: boolean) => {
+        if (!currentUser) return;
+        const notificationRef = collection(db, "users", targetUserId, "notifications");
+        await addDoc(notificationRef, {
+            type: "message",
+            from: {
+                name: isGroup ? "Family Group Chat" : currentUser.displayName,
+                avatar: isGroup ? null : currentUser.photoURL,
+                uid: isGroup ? "group" : currentUser.uid,
+            },
+            read: false,
+            timestamp: serverTimestamp()
+        });
+    }
 
     const incrementUnreadCount = async () => {
         if (!chatId || !currentUser) return;
@@ -36,6 +51,7 @@ export default function MessageInput({ chatId, otherUserId }: MessageInputProps)
                          const newCount = (unreadDoc.data()?.count || 0) + 1;
                          transaction.set(unreadCountRef, { count: newCount });
                      });
+                     createNotification(userDoc.id, true);
                  }
              });
 
@@ -47,6 +63,7 @@ export default function MessageInput({ chatId, otherUserId }: MessageInputProps)
                 const newCount = (unreadDoc.data()?.count || 0) + 1;
                 transaction.set(unreadCountRef, { count: newCount });
             });
+            await createNotification(otherUserId, false);
         }
     };
 

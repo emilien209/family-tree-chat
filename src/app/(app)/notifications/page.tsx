@@ -1,10 +1,11 @@
+
 "use client"
 
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, UserPlus, AlertTriangle } from "lucide-react";
+import { Heart, UserPlus, MessageSquare, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -35,6 +36,8 @@ export default function NotificationsPage() {
                 return <>{fromUser} started following you.</>;
             case 'comment':
                  return <>{fromUser} commented on your post: "{note.comment}"</>;
+            case 'message':
+                 return <>You have a new message from {fromUser}.</>;
             default:
                 return 'New notification';
         }
@@ -47,7 +50,9 @@ export default function NotificationsPage() {
             case 'follow':
                 return <UserPlus className="h-5 w-5 text-primary" />;
             case 'comment':
-                return <UserPlus className="h-5 w-5 text-blue-500" />;
+                return <MessageSquare className="h-5 w-5 text-blue-500" />;
+            case 'message':
+                return <MessageSquare className="h-5 w-5 text-sky-500" />;
             default:
                 return <Heart className="h-5 w-5" />;
         }
@@ -109,3 +114,5 @@ export default function NotificationsPage() {
         </div>
     );
 }
+
+    
