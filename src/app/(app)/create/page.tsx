@@ -94,6 +94,9 @@ export default function CreatePage() {
         );
       } else if (mediaPreview.startsWith('http')) {
         // If it's a URL, just use it directly
+        // This is not a good practice for production as it can lead to mixed content warnings and other issues.
+        // A better approach is to fetch the image server-side, then upload to your own storage.
+        // For this demo, we'll proceed with the direct URL.
         await createFirestoreDoc(mediaPreview);
       }
     } catch (err) {
@@ -109,27 +112,37 @@ export default function CreatePage() {
 
   const createFirestoreDoc = async (mediaUrl: string) => {
     if (!user) return;
-     await addDoc(collection(db, "posts"), {
-        author: {
-          name: user.displayName,
-          avatar: user.photoURL,
-          uid: user.uid,
-        },
-        content: caption,
-        imageUrl: mediaUrl,
-        mediaType: mediaFile?.type || (mediaUrl.includes('.mp4') ? 'video/mp4' : 'image/jpeg'),
-        likes: 0,
-        comments: [],
-        timestamp: serverTimestamp(),
-      });
-      
-      toast({
-        title: "Post Created!",
-        description: "Your post has been shared with the family.",
-      });
+     try {
+        await addDoc(collection(db, "posts"), {
+            author: {
+            name: user.displayName,
+            avatar: user.photoURL,
+            uid: user.uid,
+            },
+            content: caption,
+            imageUrl: mediaUrl,
+            mediaType: mediaFile?.type || (mediaUrl.includes('.mp4') ? 'video/mp4' : 'image/jpeg'),
+            likes: 0,
+            comments: [],
+            timestamp: serverTimestamp(),
+        });
+        
+        toast({
+            title: "Post Created!",
+            description: "Your post has been shared with the family.",
+        });
 
-      router.push('/feed');
-      setIsPosting(false);
+        router.push('/feed');
+     } catch (err) {
+        console.error("Firestore error:", err);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not save post details. Please try again.",
+        });
+     } finally {
+        setIsPosting(false);
+     }
   }
 
   return (
@@ -151,16 +164,16 @@ export default function CreatePage() {
             {mediaPreview ? (
               <div className="space-y-4">
                 <div className="relative w-full aspect-square bg-black rounded-md">
-                   {mediaFile?.type.startsWith('video/') || mediaPreview.includes('.mp4') ? (
+                   {mediaFile?.type.startsWith('video/') || (mediaPreview && !mediaFile && mediaPreview.match(/\.(mp4|webm|ogg)$/i)) ? (
                         <video src={mediaPreview} controls className="w-full h-full rounded-md object-contain" />
                     ) : (
-                        <Image src={mediaPreview} alt="Preview" fill className="rounded-md object-contain" />
+                        mediaPreview && <Image src={mediaPreview} alt="Preview" fill className="rounded-md object-contain" />
                     )}
                    <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia} disabled={isPosting}>
                       <X className="h-4 w-4" />
                    </Button>
                 </div>
-                { isPosting && <Progress value={uploadProgress} className="w-full mt-2" />}
+                { isPosting && mediaFile && <Progress value={uploadProgress} className="w-full mt-2" />}
                 <Textarea 
                   placeholder="Write a caption..." 
                   value={caption}
