@@ -74,6 +74,10 @@ Your response should be formatted for a chat interface, using markdown for lists
       }
     });
 
-    return llmResponse.output()!;
+    const output = llmResponse.output();
+    if (!output) {
+      return { response: "I'm sorry, I couldn't generate a response." };
+    }
+    return output;
   }
 );

@@ -65,6 +65,11 @@ Present these ideas in a clear and concise list format.
         schema: GenerateIdeasOutputSchema,
       },
     });
-    return llmResponse.output()!;
+    
+    const output = llmResponse.output();
+    if (!output) {
+      return { ideas: ["Sorry, I couldn't come up with ideas right now."] };
+    }
+    return output;
   }
 );

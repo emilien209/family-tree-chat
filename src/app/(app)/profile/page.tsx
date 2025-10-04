@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,8 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
-import { auth, storage } from "@/lib/firebase";
+import { auth, storage, db } from "@/lib/firebase";
 import { updateProfile } from "firebase/auth";
+import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { generateFamilyImage } from "@/ai/flows/generate-family-image";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Wand2, Loader2, Upload, User, Save, Link as LinkIcon } from "lucide-react";
+import { Wand2, Loader2, Upload, User, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -111,6 +113,13 @@ export default function ProfilePage() {
                 photoURL: photoURL,
             });
 
+            // Also update the user's document in Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            await updateDoc(userDocRef, {
+                name: values.fullName,
+                avatar: photoURL,
+            });
+
             setNewAvatar(null);
             setGeneratedImageUrl(null);
             setAvatarUrl('');
@@ -119,8 +128,11 @@ export default function ProfilePage() {
                 title: "Profile Updated",
                 description: "Your profile has been successfully updated.",
             });
-
+            
+            // Reload user to get fresh data, then refresh page to show it
             await user.reload(); 
+            setUser(auth.currentUser);
+            // Instead of full reload, can trigger state update in parent
             window.location.reload();
 
         } catch (error) {
@@ -190,18 +202,18 @@ export default function ProfilePage() {
                                         className="hidden"
                                         accept="image/*"
                                     />
-                                    <Tabs defaultValue="upload" className="w-full max-w-xs">
-                                        <TabsList>
+                                    <Tabs defaultValue="upload" className="w-full max-w-sm">
+                                        <TabsList className="grid grid-cols-2">
                                             <TabsTrigger value="upload">Upload</TabsTrigger>
                                             <TabsTrigger value="url">URL</TabsTrigger>
                                         </TabsList>
-                                        <TabsContent value="upload">
-                                            <Button type="button" variant="outline" className="mt-2 w-full" onClick={() => fileInputRef.current?.click()}>
-                                                <Upload className="mr-2" /> Upload Photo
+                                        <TabsContent value="upload" className="mt-4">
+                                            <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                                                <Upload className="mr-2 h-4 w-4" /> Upload Photo
                                             </Button>
                                         </TabsContent>
-                                        <TabsContent value="url">
-                                             <div className="flex items-center space-x-2 mt-2">
+                                        <TabsContent value="url" className="mt-4">
+                                             <div className="flex items-center space-x-2">
                                                 <Input type="url" placeholder="Image URL" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
                                                 <Button type="button" onClick={handleUrlSubmit}>Set</Button>
                                             </div>
@@ -228,7 +240,7 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                                 <Button type="submit" disabled={isUploading}>
-                                    {isUploading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
+                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                     Save Changes
                                 </Button>
                             </form>
@@ -264,7 +276,7 @@ export default function ProfilePage() {
                                     )}
                                 />
                                 <Button type="submit" disabled={isGenerating} className="w-full">
-                                    {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                                     Generate Image
                                 </Button>
                             </form>
@@ -274,7 +286,7 @@ export default function ProfilePage() {
                                 <div className="flex flex-col w-full h-full items-center justify-center gap-2 text-muted-foreground">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p>Generating your image...</p>
-                                    <Skeleton className="w-full h-full" />
+                                    <Skeleton className="w-full h-full mt-2" />
                                 </div>
                             )}
                             {!isGenerating && generatedImageUrl && (

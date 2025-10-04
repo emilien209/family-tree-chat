@@ -80,7 +80,7 @@ export default function RegisterPage() {
 
       await updateProfile(user, {
         displayName: displayName,
-        photoURL: '/logo.png',
+        photoURL: '/logo.png', // Default logo
       });
 
       // Save user info to Firestore 'users' collection
@@ -88,13 +88,13 @@ export default function RegisterPage() {
         name: displayName,
         email: user.email,
         uid: user.uid,
-        avatar: '/logo.png',
+        avatar: '/logo.png', // Default logo
         isAdmin: isAdmin,
       });
 
       toast({
-        title: "Account Created!",
-        description: "Welcome to the family! Redirecting...",
+        title: `Welcome, ${displayName}!`,
+        description: "Your account has been created. Redirecting...",
       });
       router.push("/feed");
     } catch (error: any) {
@@ -120,7 +120,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">

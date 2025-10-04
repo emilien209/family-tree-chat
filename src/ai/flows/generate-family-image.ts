@@ -34,13 +34,6 @@ export async function generateFamilyImage(
   return generateFamilyImageFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateFamilyImagePrompt',
-  input: {schema: GenerateFamilyImageInputSchema},
-  output: {schema: GenerateFamilyImageOutputSchema},
-  prompt: `Generate a family-friendly image based on the following description: {{{prompt}}}. The image should be suitable for use as a profile picture, header, or event invitation. Ensure the content is appropriate for all ages and reflects positive family values.`,
-});
-
 const generateFamilyImageFlow = ai.defineFlow(
   {
     name: 'generateFamilyImageFlow',
@@ -50,11 +43,11 @@ const generateFamilyImageFlow = ai.defineFlow(
   async input => {
     const {media} = await ai.generate({
       model: 'googleai/imagen-4.0-fast-generate-001',
-      prompt: input.prompt + 'in a photorealistic style.'
+      prompt: input.prompt
     });
-    if (!media) {
+    if (!media || !media.url) {
       throw new Error('No image was generated.');
     }
-    return {imageUrl: media.url!};
+    return {imageUrl: media.url};
   }
 );
