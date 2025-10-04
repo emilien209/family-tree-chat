@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { auth, storage, db } from "@/lib/firebase";
 import { updateProfile } from "firebase/auth";
@@ -17,19 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { generateFamilyImage } from "@/ai/flows/generate-family-image";
-import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Wand2, Loader2, Upload, User, Save } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2, Upload, User, Save } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const profileFormSchema = z.object({
     fullName: z.string().min(2, "Name must be at least 2 characters."),
-});
-
-const imagePromptSchema = z.object({
-    prompt: z.string().min(10, { message: "Prompt must be at least 10 characters." }),
 });
 
 export default function ProfilePage() {
@@ -38,8 +30,6 @@ export default function ProfilePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [newAvatar, setNewAvatar] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState('');
 
 
@@ -63,20 +53,12 @@ export default function ProfilePage() {
         }
     }, [user, profileForm]);
 
-    const imagePromptForm = useForm<z.infer<typeof imagePromptSchema>>({
-        resolver: zodResolver(imagePromptSchema),
-        defaultValues: {
-            prompt: "A happy person smiling, in a photorealistic style.",
-        },
-    });
-
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 setNewAvatar(e.target?.result as string);
-                setGeneratedImageUrl(null);
             };
             reader.readAsDataURL(file);
         }
@@ -85,7 +67,6 @@ export default function ProfilePage() {
     const handleUrlSubmit = () => {
         if(avatarUrl) {
             setNewAvatar(avatarUrl);
-            setGeneratedImageUrl(null);
         }
     };
 
@@ -121,7 +102,6 @@ export default function ProfilePage() {
             });
 
             setNewAvatar(null);
-            setGeneratedImageUrl(null);
             setAvatarUrl('');
 
             toast({
@@ -146,30 +126,6 @@ export default function ProfilePage() {
             setIsUploading(false);
         }
     };
-    
-    async function onImagePromptSubmit(values: z.infer<typeof imagePromptSchema>) {
-        setIsGenerating(true);
-        setGeneratedImageUrl(null);
-        try {
-            const result = await generateFamilyImage(values);
-            setGeneratedImageUrl(result.imageUrl);
-            setNewAvatar(result.imageUrl);
-            toast({
-                title: "Image Generated!",
-                description: "Your new avatar is ready. Save changes to apply.",
-            });
-        } catch (error) {
-            console.error(error);
-            toast({
-                variant: "destructive",
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem generating your image.",
-            });
-        } finally {
-            setIsGenerating(false);
-        }
-    }
-
 
     const currentAvatarSrc = newAvatar || user?.photoURL || '';
 
@@ -245,68 +201,6 @@ export default function ProfilePage() {
                                 </Button>
                             </form>
                         </Form>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>AI Avatar Generator</CardTitle>
-                        <CardDescription>
-                            Create a unique profile picture with AI. Describe what you want, and we'll generate it for you.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid md:grid-cols-2 gap-6">
-                        <Form {...imagePromptForm}>
-                            <form onSubmit={imagePromptForm.handleSubmit(onImagePromptSubmit)} className="space-y-4">
-                                <FormField
-                                    control={imagePromptForm.control}
-                                    name="prompt"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Image Description</FormLabel>
-                                            <FormControl>
-                                                <Textarea
-                                                    placeholder="e.g., A family portrait in a vintage style."
-                                                    className="min-h-[100px]"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <Button type="submit" disabled={isGenerating} className="w-full">
-                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                                    Generate Image
-                                </Button>
-                            </form>
-                        </Form>
-                        <div className="flex flex-col items-center justify-center bg-muted/50 rounded-lg p-4 aspect-square">
-                            {isGenerating && (
-                                <div className="flex flex-col w-full h-full items-center justify-center gap-2 text-muted-foreground">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                    <p>Generating your image...</p>
-                                    <Skeleton className="w-full h-full mt-2" />
-                                </div>
-                            )}
-                            {!isGenerating && generatedImageUrl && (
-                                <div className="relative w-full h-full">
-                                    <Image
-                                        src={generatedImageUrl}
-                                        alt="Generated avatar"
-                                        fill
-                                        className="object-contain rounded-md"
-                                    />
-                                </div>
-                            )}
-                            {!isGenerating && !generatedImageUrl && (
-                                <div className="text-center text-muted-foreground">
-                                    <Wand2 className="mx-auto h-12 w-12" />
-                                    <p className="mt-2">Your generated image will appear here.</p>
-                                    <p className="text-xs mt-1">Click "Save Changes" on your profile to apply it.</p>
-                                </div>
-                            )}
-                        </div>
                     </CardContent>
                 </Card>
             </div>

@@ -7,22 +7,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Target, Wand2, PlusCircle, Lightbulb, Loader2, CheckCircle2 } from "lucide-react";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Target, PlusCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { generateIdeas } from "@/ai/flows/generate-ideas";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection } from "react-firebase-hooks/firestore";
 import { db } from "@/lib/firebase";
-import { collection, query, addDoc, serverTimestamp, orderBy, doc, updateDoc, where } from 'firebase/firestore';
-
-const ideaFormSchema = z.object({
-    topic: z.string().min(5, { message: "Topic must be at least 5 characters." }),
-});
+import { collection, query, addDoc, serverTimestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 
 const goalFormSchema = z.object({
     text: z.string().min(10, { message: "Goal must be at least 10 characters." }),
@@ -36,20 +30,11 @@ interface Goal {
 
 export default function GoalsPage() {
     const { toast } = useToast();
-    const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
-    const [isGenerating, setIsGenerating] = useState(false);
     const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
 
     const goalsRef = collection(db, "goals");
     const q = query(goalsRef, orderBy("timestamp", "desc"));
     const [goalsSnapshot, loading, error] = useCollection(q);
-
-    const ideaForm = useForm<z.infer<typeof ideaFormSchema>>({
-        resolver: zodResolver(ideaFormSchema),
-        defaultValues: {
-            topic: "Ways to improve our family's health and wellness",
-        },
-    });
 
     const goalForm = useForm<z.infer<typeof goalFormSchema>>({
         resolver: zodResolver(goalFormSchema),
@@ -57,24 +42,6 @@ export default function GoalsPage() {
             text: "",
         },
     });
-
-    async function onIdeaSubmit(values: z.infer<typeof ideaFormSchema>) {
-        setIsGenerating(true);
-        setGeneratedIdeas([]);
-        try {
-            const result = await generateIdeas(values);
-            setGeneratedIdeas(result.ideas);
-        } catch (error) {
-            console.error(error);
-            toast({
-                variant: "destructive",
-                title: "Uh oh! Something went wrong.",
-                description: "There was a problem generating ideas.",
-            });
-        } finally {
-            setIsGenerating(false);
-        }
-    }
 
     async function onGoalSubmit(values: z.infer<typeof goalFormSchema>) {
         setIsSubmittingGoal(true);
@@ -125,7 +92,7 @@ export default function GoalsPage() {
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1fr_420px]">
+                <div className="max-w-2xl mx-auto">
                     <Card>
                         <CardHeader>
                             <CardTitle>Our Shared Goals</CardTitle>
@@ -184,75 +151,8 @@ export default function GoalsPage() {
                             </ScrollArea>
                         </CardContent>
                     </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                 <Lightbulb className="h-6 w-6 text-accent" />
-                                <CardTitle>AI Idea Generator</CardTitle>
-                            </div>
-                            <CardDescription>Stuck? Brainstorm ideas for family goals with AI.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <Form {...ideaForm}>
-                                <form onSubmit={ideaForm.handleSubmit(onIdeaSubmit)} className="space-y-4">
-                                    <FormField
-                                        control={ideaForm.control}
-                                        name="topic"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Topic for Brainstorming</FormLabel>
-                                                <FormControl>
-                                                    <Textarea
-                                                        placeholder="e.g., Family bonding activities"
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <Button type="submit" disabled={isGenerating} className="w-full">
-                                        {isGenerating ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Wand2 className="mr-2 h-4 w-4" />
-                                        )}
-                                        Generate Ideas
-                                    </Button>
-                                </form>
-                            </Form>
-                            <Separator className="my-6" />
-                            <div className="space-y-4">
-                                <h4 className="font-semibold">Generated Ideas</h4>
-                                {isGenerating && (
-                                    <div className="space-y-3">
-                                        <Skeleton className="h-5 w-4/5" />
-                                        <Skeleton className="h-5 w-full" />
-                                        <Skeleton className="h-5 w-3/4" />
-                                    </div>
-                                )}
-                                {!isGenerating && generatedIdeas.length === 0 && (
-                                     <div className="text-center text-muted-foreground p-4 bg-muted/50 rounded-lg">
-                                        <p>Your generated ideas will appear here.</p>
-                                    </div>
-                                )}
-                                {generatedIdeas.length > 0 && (
-                                    <ul className="space-y-3">
-                                        {generatedIdeas.map((idea, index) => (
-                                            <li key={index} className="flex items-start gap-3 text-sm">
-                                                <Lightbulb className="h-4 w-4 mt-1 text-accent flex-shrink-0" />
-                                                <span>{idea}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
         </div>
     );
 }
-

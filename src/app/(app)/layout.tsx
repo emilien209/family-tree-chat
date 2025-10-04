@@ -2,7 +2,6 @@
 "use client";
 
 import NewSidebar from "@/components/layout/sidebar";
-import AiChat from "@/components/layout/ai-chat";
 import { usePathname } from 'next/navigation';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
@@ -15,7 +14,6 @@ export default function AppLayout({
   children,
 }: AppLayoutProps) {
     const pathname = usePathname();
-    const showAiChat = !pathname.startsWith('/chat');
 
   return (
     <SidebarProvider>
@@ -26,7 +24,6 @@ export default function AppLayout({
             {children}
           </main>
         </SidebarInset>
-        {showAiChat && <AiChat />}
       </div>
     </SidebarProvider>
   );
