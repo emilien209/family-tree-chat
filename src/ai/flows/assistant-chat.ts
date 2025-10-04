@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -55,7 +56,7 @@ const assistantChatFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-pro',
+      model: 'googleai/gemini-1.5-flash-latest',
       prompt: `You are a helpful AI assistant for a family-centric social media application.
 Your role is to:
 1.  Answer user questions about how to use the application.

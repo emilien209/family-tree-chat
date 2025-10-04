@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -52,7 +53,7 @@ const generateIdeasFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-pro',
+      model: 'googleai/gemini-1.5-flash-latest',
       prompt: `You are an expert consultant specializing in family development and unity.
 A user is looking for ideas on the following topic: ${input.topic}.
 
