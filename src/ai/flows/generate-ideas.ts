@@ -10,7 +10,6 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const GenerateIdeasInputSchema = z.object({
@@ -53,19 +52,7 @@ const generateIdeasFlow = ai.defineFlow(
     outputSchema: GenerateIdeasOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash-latest'),
-      prompt: `You are an expert consultant specializing in family development and unity.
-A user is looking for ideas on the following topic: ${input.topic}.
-
-Brainstorm a list of 5 creative, actionable, and positive ideas to help a family grow and bond together related to this topic.
-For each idea, provide a short, one-sentence description.
-Present these ideas in a clear and concise list format.
-`,
-      output: {
-        schema: GenerateIdeasOutputSchema,
-      },
-    });
+    const llmResponse = await prompt(input);
     
     const output = llmResponse.output;
     if (!output) {
