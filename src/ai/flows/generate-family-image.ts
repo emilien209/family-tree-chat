@@ -44,7 +44,7 @@ const generateFamilyImageFlow = ai.defineFlow(
   async input => {
     const {media} = await ai.generate({
       model: googleAI.model('imagen-4.0-fast-generate-001'),
-      prompt: input.prompt
+      prompt: `A family-friendly, photorealistic image based on the following prompt: ${input.prompt}`
     });
     if (!media || !media.url) {
       throw new Error('No image was generated.');

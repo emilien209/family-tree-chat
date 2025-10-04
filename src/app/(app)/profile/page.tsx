@@ -171,7 +171,7 @@ export default function ProfilePage() {
     }
 
 
-    const currentAvatarSrc = newAvatar || user?.photoURL || undefined;
+    const currentAvatarSrc = newAvatar || user?.photoURL || '';
 
     return (
         <div className="flex flex-col h-full">

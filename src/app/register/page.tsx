@@ -80,7 +80,7 @@ export default function RegisterPage() {
 
       await updateProfile(user, {
         displayName: displayName,
-        photoURL: '/logo.png', // Default logo
+        photoURL: '', // Start with an empty photo URL
       });
 
       // Save user info to Firestore 'users' collection
@@ -88,7 +88,7 @@ export default function RegisterPage() {
         name: displayName,
         email: user.email,
         uid: user.uid,
-        avatar: '/logo.png', // Default logo
+        avatar: '', // Start with an empty avatar
         isAdmin: isAdmin,
       });
 

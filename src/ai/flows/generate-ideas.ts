@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const GenerateIdeasInputSchema = z.object({
@@ -32,28 +33,28 @@ export async function generateIdeas(
   return generateIdeasFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateIdeasPrompt',
-  input: {schema: GenerateIdeasInputSchema},
-  output: {schema: GenerateIdeasOutputSchema},
-  prompt: `You are an expert consultant specializing in family development and unity.
-A user is looking for ideas on the following topic: {{{topic}}}.
-
-Brainstorm a list of 5 creative, actionable, and positive ideas to help a family grow and bond together related to this topic.
-For each idea, provide a short, one-sentence description.
-Present these ideas in a clear and concise list format.
-`,
-});
-
 const generateIdeasFlow = ai.defineFlow(
   {
     name: 'generateIdeasFlow',
     inputSchema: GenerateIdeasInputSchema,
     outputSchema: GenerateIdeasOutputSchema,
   },
-  async input => {
-    const llmResponse = await prompt(input);
+  async (input) => {
+     const prompt = `You are an expert consultant specializing in family development and unity.
+A user is looking for ideas on the following topic: ${input.topic}.
+
+Brainstorm a list of 5 creative, actionable, and positive ideas to help a family grow and bond together related to this topic.
+For each idea, provide a short, one-sentence description.
+Your response should be structured as a JSON object with a key "ideas" which is an array of strings. Do not include any other text or markdown.`;
     
+    const llmResponse = await ai.generate({
+      model: googleAI.model('gemini-1.5-flash-latest'),
+      prompt: prompt,
+      output: {
+          schema: GenerateIdeasOutputSchema,
+      }
+    });
+
     const output = llmResponse.output;
     if (!output) {
       return { ideas: ["Sorry, I couldn't come up with ideas right now."] };

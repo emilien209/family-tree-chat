@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const AssistantChatInputSchema = z.object({
@@ -30,37 +31,35 @@ export async function assistantChat(
   return assistantChatFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'assistantChatPrompt',
-  input: {schema: AssistantChatInputSchema},
-  output: {schema: AssistantChatOutputSchema},
-  prompt: `You are a helpful AI assistant for a family-centric social media application.
-Your role is to:
-1.  Answer user questions about how to use the application.
-2.  Provide creative ideas for new features or improvements if asked.
-3.  Be friendly, supportive, and encourage family connection.
-
-User's question: {{{question}}}
-
-Based on the question, provide a clear, helpful, and concise response.
-If you are suggesting ideas, present them in a list format.
-Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.
-`,
-});
-
 const assistantChatFlow = ai.defineFlow(
   {
     name: 'assistantChatFlow',
     inputSchema: AssistantChatInputSchema,
     outputSchema: AssistantChatOutputSchema,
   },
-  async input => {
-    const llmResponse = await prompt(input);
-    
-    const output = llmResponse.output;
-    if (!output) {
+  async (input) => {
+    const prompt = `You are a helpful AI assistant for a family-centric social media application.
+Your role is to:
+1.  Answer user questions about how to use the application.
+2.  Provide creative ideas for new features or improvements if asked.
+3.  Be friendly, supportive, and encourage family connection.
+
+User's question: ${input.question}
+
+Based on the question, provide a clear, helpful, and concise response.
+If you are suggesting ideas, present them in a list format.
+Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.`;
+
+    const llmResponse = await ai.generate({
+      model: googleAI.model('gemini-1.5-flash-latest'),
+      prompt: prompt,
+    });
+
+    const responseText = llmResponse.text;
+    if (!responseText) {
       return {response: "I'm sorry, I couldn't generate a response."};
     }
-    return output;
+
+    return { response: responseText };
   }
 );
