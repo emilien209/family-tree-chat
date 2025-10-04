@@ -55,7 +55,26 @@ const assistantChatFlow = ai.defineFlow(
     outputSchema: AssistantChatOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const llmResponse = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
+      prompt: `You are a helpful AI assistant for a family-centric social media application.
+Your role is to:
+1.  Answer user questions about how to use the application.
+2.  Provide creative ideas for new features or improvements if asked.
+3.  Be friendly, supportive, and encourage family connection.
+
+User's question: ${input.question}
+
+Based on the question, provide a clear, helpful, and concise response.
+If you are suggesting ideas, present them in a list format.
+Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.
+`,
+      output: {
+        schema: AssistantChatOutputSchema,
+      },
+    });
+
+    const output = llmResponse.output();
     if (!output) {
       return {response: "I'm sorry, I couldn't generate a response."};
     }
