@@ -80,7 +80,7 @@ export default function RegisterPage() {
 
       await updateProfile(user, {
         displayName: displayName,
-        photoURL: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+        photoURL: '/logo.png',
       });
 
       // Save user info to Firestore 'users' collection
@@ -88,7 +88,7 @@ export default function RegisterPage() {
         name: displayName,
         email: user.email,
         uid: user.uid,
-        avatar: 'https://images.unsplash.com/photo-1722270608841-35d7372a2e85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cHJvZmlsZSUyMGF2YXRhcnxlbnwwfHx8fDE3NTkxMDI4NTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+        avatar: '/logo.png',
         isAdmin: isAdmin,
       });
 
