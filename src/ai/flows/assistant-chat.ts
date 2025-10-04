@@ -31,6 +31,26 @@ export async function assistantChat(
   return assistantChatFlow(input);
 }
 
+
+const assistantPrompt = ai.definePrompt({
+  name: 'assistantPrompt',
+  input: { schema: AssistantChatInputSchema },
+  output: { schema: AssistantChatOutputSchema },
+
+  prompt: `You are a helpful AI assistant for a family-centric social media application.
+Your role is to:
+1.  Answer user questions about how to use the application.
+2.  Provide creative ideas for new features or improvements if asked.
+3.  Be friendly, supportive, and encourage family connection.
+
+User's question: {{{question}}}
+
+Based on the question, provide a clear, helpful, and concise response.
+If you are suggesting ideas, present them in a list format.
+Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.`,
+});
+
+
 const assistantChatFlow = ai.defineFlow(
   {
     name: 'assistantChatFlow',
@@ -38,28 +58,14 @@ const assistantChatFlow = ai.defineFlow(
     outputSchema: AssistantChatOutputSchema,
   },
   async (input) => {
-    const prompt = `You are a helpful AI assistant for a family-centric social media application.
-Your role is to:
-1.  Answer user questions about how to use the application.
-2.  Provide creative ideas for new features or improvements if asked.
-3.  Be friendly, supportive, and encourage family connection.
+    const llmResponse = await assistantPrompt(input);
 
-User's question: ${input.question}
+    const output = llmResponse.output;
 
-Based on the question, provide a clear, helpful, and concise response.
-If you are suggesting ideas, present them in a list format.
-Your response should be formatted for a chat interface, using markdown for lists, bolding, etc. where appropriate.`;
-
-    const llmResponse = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash-latest'),
-      prompt: prompt,
-    });
-
-    const responseText = llmResponse.text;
-    if (!responseText) {
+    if (!output?.response) {
       return {response: "I'm sorry, I couldn't generate a response."};
     }
 
-    return { response: responseText };
+    return output;
   }
 );
