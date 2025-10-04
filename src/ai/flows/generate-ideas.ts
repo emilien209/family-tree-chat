@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const GenerateIdeasInputSchema = z.object({
@@ -53,7 +54,7 @@ const generateIdeasFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: googleAI.model('gemini-1.5-flash-latest'),
       prompt: `You are an expert consultant specializing in family development and unity.
 A user is looking for ideas on the following topic: ${input.topic}.
 
@@ -66,7 +67,7 @@ Present these ideas in a clear and concise list format.
       },
     });
     
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     if (!output) {
       return { ideas: ["Sorry, I couldn't come up with ideas right now."] };
     }

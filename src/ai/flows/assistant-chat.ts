@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import {z} from 'genkit';
 
 const AssistantChatInputSchema = z.object({
@@ -56,7 +57,7 @@ const assistantChatFlow = ai.defineFlow(
   },
   async input => {
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: googleAI.model('gemini-1.5-flash-latest'),
       prompt: `You are a helpful AI assistant for a family-centric social media application.
 Your role is to:
 1.  Answer user questions about how to use the application.
@@ -74,7 +75,7 @@ Your response should be formatted for a chat interface, using markdown for lists
       },
     });
 
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     if (!output) {
       return {response: "I'm sorry, I couldn't generate a response."};
     }
