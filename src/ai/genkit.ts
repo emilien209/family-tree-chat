@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileoverview This file initializes the Genkit AI singleton and configures it with the Google AI plugin.
  * It ensures that the GEMINI_API_KEY is properly loaded from the environment variables.
