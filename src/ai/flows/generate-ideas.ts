@@ -51,7 +51,19 @@ const generateIdeasFlow = ai.defineFlow(
     outputSchema: GenerateIdeasOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const llmResponse = await ai.generate({
+      model: 'googleai/gemini-pro',
+      prompt: `You are an expert consultant specializing in family development and unity.
+A user is looking for ideas on the following topic: ${input.topic}.
+
+Brainstorm a list of 5 creative, actionable, and positive ideas to help a family grow and bond together related to this topic.
+For each idea, provide a short, one-sentence description.
+Present these ideas in a clear and concise list format.
+`,
+      output: {
+        schema: GenerateIdeasOutputSchema,
+      },
+    });
+    return llmResponse.output()!;
   }
 );
