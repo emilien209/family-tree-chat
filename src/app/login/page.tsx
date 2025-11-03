@@ -82,9 +82,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="flex justify-center items-center mb-4">
+          <Link href="/" className="flex justify-center items-center mb-4">
              <Image src="/logo.png" alt="Family Tree Chat Logo" width={80} height={80} />
-          </div>
+          </Link>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>
             Enter your email below to log in to your account.
