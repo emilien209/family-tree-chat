@@ -7,6 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@/ai/genkit';
 import { z } from 'zod';
 
 const AssistantInputSchema = z.object({
@@ -23,6 +24,7 @@ type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 const assistantPrompt = ai.definePrompt(
     {
       name: 'assistantPrompt',
+      model: googleAI.model('gemini-1.5-flash-latest'),
       input: { schema: AssistantInputSchema },
       output: { schema: AssistantOutputSchema },
       prompt: `You are a helpful AI assistant for an application called "Family Tree Chat".
@@ -33,7 +35,7 @@ Be friendly, concise, and clear in your responses.
 
 Here is the conversation history with the user:
 {{#each history}}
-- {{role}}: {{#each content}}{{#if text}}{{text}}{{/if}}{{/each}}
+- {{#if (eq role 'user')}}User{{else}}You{{/if}}: {{#each content}}{{#if text}}{{text}}{{/if}}{{/each}}
 {{/each}}
 
 Here is the user's latest question:
