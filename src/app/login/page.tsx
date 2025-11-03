@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import Image from "next/image";
+import { Logo } from "@/components/layout/logo";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -83,7 +83,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <Link href="/" className="flex justify-center items-center mb-4">
-             <Image src="/logo.png" alt="Family Tree Chat Logo" width={80} height={80} />
+             <Logo className="w-20 h-20" />
           </Link>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>

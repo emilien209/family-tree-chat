@@ -23,8 +23,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect, useState } from "react"
 import { collection, onSnapshot } from 'firebase/firestore';
-import Image from "next/image"
-import { MoreHorizontal } from "lucide-react"
+import { Logo } from "./logo"
 import {
   Sidebar,
   SidebarHeader,
@@ -105,11 +104,11 @@ export default function NewSidebar() {
     <Sidebar collapsible="icon">
         <SidebarHeader>
              <div className={cn("flex items-center gap-2", "group-data-[collapsible=icon]:hidden")}>
-                <Image src="/logo.png" alt="Family Chat Logo" width={40} height={40} />
+                <Logo className="h-10 w-10" />
                 <h1 className="text-lg font-bold font-serif">Family Tree Chat</h1>
             </div>
              <div className={cn("hidden items-center gap-2", "group-data-[collapsible=icon]:flex")}>
-                <Image src="/logo.png" alt="Family Chat Logo" width={32} height={32} />
+                <Logo className="w-8 h-8" />
             </div>
         </SidebarHeader>
         <SidebarContent>
