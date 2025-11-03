@@ -4,8 +4,6 @@
  * @fileoverview An AI assistant for the Family Tree Chat application.
  *
  * - askAssistant - A function that handles conversation with the AI assistant.
- * - AssistantInput - The input type for the askAssistant function.
- * - AssistantOutput - The return type for the askAssistant function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -35,7 +33,7 @@ Be friendly, concise, and clear in your responses.
 
 Here is the conversation history with the user:
 {{#each history}}
-- {{#if (eq role 'user')}}User{{else}}You{{/if}}: {{#each content}}{{#if text}}{{text}}{{/if}}{{/each}}
+- {{role}}: {{#each content}}{{#if text}}{{text}}{{/if}}{{/each}}
 {{/each}}
 
 Here is the user's latest question:
