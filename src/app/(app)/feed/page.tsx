@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
@@ -159,6 +159,60 @@ const PostComments = ({ post }: { post: any }) => {
   );
 };
 
+
+const LikeButton = ({ postId, authorId, likesCount }: { postId: string, authorId: string, likesCount: number }) => {
+    const user = auth.currentUser;
+    const likeRef = user ? doc(db, "posts", postId, "likes", user.uid) : null;
+    const [likeDoc, loading, error] = useDocumentData(likeRef);
+
+    const hasLiked = !!likeDoc;
+
+    const handleLikePost = async () => {
+        if (!user || !likeRef) return; 
+        
+        const postRef = doc(db, "posts", postId);
+        const notificationRef = collection(db, "users", authorId, "notifications");
+
+        try {
+            if (hasLiked) {
+                // Unlike
+                await deleteDoc(likeRef);
+                await updateDoc(postRef, { likes: increment(-1) });
+            } else {
+                // Like
+                await setDoc(likeRef, { userId: user.uid });
+                await updateDoc(postRef, { likes: increment(1) });
+                
+                // Do not send notification if liking your own post
+                if(user.uid !== authorId) {
+                  await addDoc(notificationRef, {
+                      type: "like",
+                      from: {
+                          name: user.displayName,
+                          avatar: user.photoURL,
+                          uid: user.uid,
+                      },
+                      post: { id: postId },
+                      read: false,
+                      timestamp: serverTimestamp()
+                  });
+                }
+            }
+        } catch (err) {
+            console.error("Error liking post: ", err);
+        }
+    };
+    
+    if (loading) {
+        return <Skeleton className="h-8 w-8" />;
+    }
+
+    return (
+        <Button variant="ghost" size="icon" onClick={handleLikePost}>
+            <Heart className={`h-6 w-6 ${hasLiked ? 'text-red-500 fill-red-500' : ''}`} />
+        </Button>
+    )
+}
 
 export default function FeedPage() {
   const { toast } = useToast();
@@ -333,47 +387,6 @@ export default function FeedPage() {
       setIsPosting(false);
     }
   };
-
-    const handleLikePost = async (postId: string, authorId: string) => {
-        if (!user) return; 
-        
-        const postRef = doc(db, "posts", postId);
-        const likeRef = doc(postRef, "likes", user.uid);
-        const notificationRef = collection(db, "users", authorId, "notifications");
-
-        try {
-            const likeDoc = await getDoc(likeRef);
-            if (likeDoc.exists()) {
-                await deleteDoc(likeRef);
-                 await updateDoc(postRef, {
-                    likes: increment(-1)
-                });
-            } else {
-                await setDoc(likeRef, {
-                    timestamp: serverTimestamp()
-                });
-                await updateDoc(postRef, {
-                    likes: increment(1)
-                });
-                // Do not send notification if liking your own post
-                if(user.uid !== authorId) {
-                  await addDoc(notificationRef, {
-                      type: "like",
-                      from: {
-                          name: user.displayName,
-                          avatar: user.photoURL,
-                          uid: user.uid,
-                      },
-                      post: { id: postId },
-                      read: false,
-                      timestamp: serverTimestamp()
-                  });
-                }
-            }
-        } catch (err) {
-            console.error("Error liking post: ", err);
-        }
-    };
   
 
     const handleFollow = async (targetUserId: string) => {
@@ -522,9 +535,7 @@ export default function FeedPage() {
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleLikePost(post.id, post.author.uid)}>
-                            <Heart className="h-6 w-6" />
-                        </Button>
+                        <LikeButton postId={post.id} authorId={post.author.uid} likesCount={post.likes} />
                          <Button variant="ghost" size="icon">
                             <MessageSquare className="h-6 w-6" />
                         </Button>
