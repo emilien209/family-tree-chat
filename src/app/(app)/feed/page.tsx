@@ -72,10 +72,28 @@ const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => 
 );
 
 const PostMedia = ({ post }: { post: any }) => {
-    const isVideo = post.mediaType && post.mediaType.startsWith('video');
-    if (isVideo) {
-        return <video src={post.imageUrl} controls className="w-full object-cover aspect-square" />;
+    const mediaType = post.mediaType || 'image';
+
+    if (mediaType.startsWith('video')) {
+        return <video src={post.imageUrl} controls className="w-full object-cover aspect-video bg-black" />;
     }
+    
+    if (mediaType === 'youtube' && post.youtubeId) {
+       return (
+            <div className="w-full aspect-video bg-black">
+                <iframe 
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${post.youtubeId}`} 
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen>
+                </iframe>
+            </div>
+       )
+    }
+
+    // Default to image
     return <Image src={post.imageUrl} alt={post.content || 'Post media'} width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />;
 };
 
@@ -358,7 +376,7 @@ export default function FeedPage() {
       let mediaType = "text";
       
       if (postImageFile) {
-        mediaType = postImageFile.type;
+        mediaType = postImageFile.type.startsWith('video') ? 'video' : 'image';
         const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${postImageFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, postImageFile);
         

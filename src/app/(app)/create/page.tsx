@@ -3,7 +3,7 @@
 
 import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { PlusSquare, Upload, X, Loader2, Link as LinkIcon } from "lucide-react";
+import { PlusSquare, Upload, X, Loader2, Link as LinkIcon, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,11 +16,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
+type MediaType = 'image' | 'video' | 'youtube';
+
 type MediaSource = {
   file: File | null;
   previewUrl: string;
   isUrl: boolean;
+  type: MediaType;
+  youtubeId?: string;
 };
+
+// Function to extract YouTube video ID from various URL formats
+const getYouTubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+}
 
 export default function CreatePage() {
   const { toast } = useToast();
@@ -42,7 +53,8 @@ export default function CreatePage() {
         setMediaSource({
           file: file,
           previewUrl: e.target?.result as string,
-          isUrl: false
+          isUrl: false,
+          type: file.type.startsWith('video/') ? 'video' : 'image'
         });
       };
       reader.readAsDataURL(file);
@@ -50,17 +62,33 @@ export default function CreatePage() {
   };
 
   const handleUrlSubmit = async () => {
-    if(imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+    if(!imageUrl) return;
+
+    const youtubeId = getYouTubeId(imageUrl);
+    if(youtubeId) {
+        setMediaSource({
+            file: null,
+            previewUrl: `https://img.youtube.com/vi/${youtubeId}/0.jpg`,
+            isUrl: true,
+            type: 'youtube',
+            youtubeId
+        });
+        return;
+    }
+
+    if(imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      const isVideo = /\.(mp4|webm|ogg)$/i.test(imageUrl);
       setMediaSource({
         file: null,
         previewUrl: imageUrl,
-        isUrl: true
+        isUrl: true,
+        type: isVideo ? 'video' : 'image'
       });
     } else {
         toast({
             variant: "destructive",
             title: "Invalid URL",
-            description: "Please enter a valid image or video URL.",
+            description: "Please enter a valid image, video, or YouTube URL.",
         });
     }
   }
@@ -74,7 +102,7 @@ export default function CreatePage() {
     }
   };
 
-  const createFirestoreDoc = async (mediaUrl: string, mediaType: string) => {
+  const createFirestoreDoc = async (mediaUrl: string, mediaType: MediaType, extraData = {}) => {
     if (!user) return;
      try {
         await addDoc(collection(db, "posts"), {
@@ -89,6 +117,7 @@ export default function CreatePage() {
             likes: 0,
             comments: [],
             timestamp: serverTimestamp(),
+            ...extraData,
         });
         
         toast({
@@ -139,7 +168,7 @@ export default function CreatePage() {
           async () => {
             try {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                await createFirestoreDoc(downloadURL, file.type);
+                await createFirestoreDoc(downloadURL, mediaSource.type);
             } catch (finalError) {
                 setIsPosting(false);
             }
@@ -148,10 +177,8 @@ export default function CreatePage() {
       } else {
         // Use media from URL directly
         const mediaUrl = mediaSource.previewUrl;
-        // Basic media type detection from URL extension
-        let mediaType = 'image';
-        if (/\.(mp4|webm|ogg)$/i.test(mediaUrl)) mediaType = 'video';
-        await createFirestoreDoc(mediaUrl, mediaType);
+        const extraData = mediaSource.youtubeId ? { youtubeId: mediaSource.youtubeId, originalUrl: imageUrl } : {};
+        await createFirestoreDoc(mediaUrl, mediaSource.type, extraData);
       }
     } catch (err) {
       console.error("Error creating post: ", err);
@@ -159,10 +186,6 @@ export default function CreatePage() {
       setIsPosting(false);
     }
   };
-
-  const mediaType = mediaSource?.isUrl 
-    ? (mediaSource.previewUrl.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image') 
-    : (mediaSource?.file?.type.startsWith('video/') ? 'video' : 'image');
 
 
   return (
@@ -183,11 +206,18 @@ export default function CreatePage() {
           <CardContent>
             {mediaSource ? (
               <div className="space-y-4">
-                <div className="relative w-full aspect-square bg-black rounded-md">
-                   {mediaType === 'video' ? (
+                <div className="relative w-full aspect-square bg-black rounded-md flex items-center justify-center">
+                   {mediaSource.type === 'video' ? (
                         <video src={mediaSource.previewUrl} controls className="w-full h-full rounded-md object-contain" />
                     ) : (
+                        <>
                         <Image src={mediaSource.previewUrl} alt="Preview" fill className="rounded-md object-contain" />
+                        {mediaSource.type === 'youtube' && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <Youtube className="h-16 w-16 text-red-500" />
+                            </div>
+                        )}
+                        </>
                     )}
                    <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia} disabled={isPosting}>
                       <X className="h-4 w-4" />
@@ -229,9 +259,9 @@ export default function CreatePage() {
                     <TabsContent value="url">
                          <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center mt-4">
                             <LinkIcon className="h-12 w-12 text-muted-foreground" />
-                            <p className="mt-4 text-lg font-semibold">Paste an image or video URL</p>
+                            <p className="mt-4 text-lg font-semibold">Paste an image, video or YouTube URL</p>
                             <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
-                                <Input type="url" placeholder="https://example.com/media.png" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                                <Input type="url" placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
                                 <Button type="button" onClick={handleUrlSubmit}>Add</Button>
                             </div>
                          </div>
