@@ -76,16 +76,17 @@ export default function CreatePage() {
         return;
     }
 
-    if(imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      const isVideo = /\.(mp4|webm|ogg)$/i.test(imageUrl);
-      setMediaSource({
-        file: null,
-        previewUrl: imageUrl,
-        isUrl: true,
-        type: isVideo ? 'video' : 'image'
-      });
-    } else {
-        toast({
+    try {
+        new URL(imageUrl);
+        const isVideo = /\.(mp4|webm|ogg)$/i.test(new URL(imageUrl).pathname);
+        setMediaSource({
+            file: null,
+            previewUrl: imageUrl,
+            isUrl: true,
+            type: isVideo ? 'video' : 'image'
+        });
+    } catch (_) {
+         toast({
             variant: "destructive",
             title: "Invalid URL",
             description: "Please enter a valid image, video, or YouTube URL.",
@@ -114,8 +115,8 @@ export default function CreatePage() {
             content: caption,
             imageUrl: mediaUrl,
             mediaType: mediaType,
-            likes: 0,
-            comments: [],
+            likesCount: 0,
+            commentsCount: 0,
             timestamp: serverTimestamp(),
             ...extraData,
         });

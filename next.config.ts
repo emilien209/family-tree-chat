@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'img.youtube.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'scontent.fkgl4-2.fna.fbcdn.net',
+      },
     ],
   },
 };
