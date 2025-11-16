@@ -286,11 +286,9 @@ export default function FeedPage() {
   }, [lastVisible, hasMore]);
 
   useEffect(() => {
-    const unsub = fetchPosts();
-    // This is to make sure we clean up the onSnapshot listener
-    // But since fetchPosts returns a promise of a function, we handle it this way
+    const unsubPromise = fetchPosts();
     return () => {
-      unsub.then(cleanup => cleanup && cleanup());
+      unsubPromise.then(cleanup => cleanup && cleanup());
     }
   }, [fetchPosts]);
 
