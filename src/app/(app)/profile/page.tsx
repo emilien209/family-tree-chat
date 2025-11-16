@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 
 const profileFormSchema = z.object({
     fullName: z.string().min(2, "Name must be at least 2 characters."),
@@ -297,5 +298,3 @@ export default function ProfilePage() {
         </div>
     )
 }
-
-    
