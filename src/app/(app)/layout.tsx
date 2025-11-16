@@ -4,7 +4,7 @@
 import NewSidebar from "@/components/layout/sidebar";
 import { usePathname } from 'next/navigation';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import AssistantButton from "@/components/ai/assistant-button";
+import NewMessagesButton from "@/components/chat/new-messages-button";
 
 
 interface AppLayoutProps {
@@ -25,7 +25,7 @@ export default function AppLayout({
             {children}
           </main>
         </SidebarInset>
-        <AssistantButton />
+        <NewMessagesButton />
       </div>
     </SidebarProvider>
   );
