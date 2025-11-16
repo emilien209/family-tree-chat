@@ -92,10 +92,12 @@ export default function NotificationsPage() {
                     return (
                         <li key={doc.id} className="flex items-center gap-4 p-4 hover:bg-muted/50">
                             <div className="relative">
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={note.from.avatar} />
-                                    <AvatarFallback>{note.from.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
+                                <Link href={`/profile/${note.from.uid}`}>
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={note.from.avatar} />
+                                        <AvatarFallback>{note.from.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </Link>
                                 <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5">
                                    {getNotificationIcon(note.type)}
                                 </div>

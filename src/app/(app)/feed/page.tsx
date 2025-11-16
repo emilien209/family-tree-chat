@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
+import Link from 'next/link';
 
 const POSTS_PER_PAGE = 5;
 
@@ -140,7 +141,8 @@ const PostComments = ({ post }: { post: any }) => {
       </p>
       {post.comments?.slice(-2).map((c: any, index: number) => (
         <p key={index} className="text-sm">
-          <span className="font-semibold mr-1">{c.user.name}</span>{c.text}
+          <Link href={`/profile/${c.user.uid}`} className="font-semibold mr-1 hover:underline">{c.user.name}</Link>
+          {c.text}
         </p>
       ))}
       <div className="w-full flex items-center gap-2 pt-2">
@@ -518,12 +520,14 @@ export default function FeedPage() {
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <Avatar>
-                                <AvatarImage src={post.author.avatar} />
-                                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <Link href={`/profile/${post.author.uid}`}>
+                                <Avatar>
+                                    <AvatarImage src={post.author.avatar} />
+                                    <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            </Link>
                             <div>
-                                <p className="font-semibold text-sm">{post.author.name}</p>
+                                <Link href={`/profile/${post.author.uid}`} className="font-semibold text-sm hover:underline">{post.author.name}</Link>
                                 <p className="text-xs text-muted-foreground">
                                 {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
                                 </p>
@@ -546,7 +550,7 @@ export default function FeedPage() {
                         </Button>
                      </div>
                      <p className="font-semibold text-sm">{post.likes} likes</p>
-                    {post.content && <p className="text-sm"><span className="font-semibold mr-1">{post.author.name}</span>{post.content}</p>}
+                    {post.content && <p className="text-sm"><Link href={`/profile/${post.author.uid}`} className="font-semibold mr-1 hover:underline">{post.author.name}</Link>{post.content}</p>}
                     <PostComments post={post} />
                 </CardFooter>
                 </Card>
@@ -582,8 +586,8 @@ export default function FeedPage() {
                                      <AvatarFallback>{suggUser.name?.charAt(0)}</AvatarFallback>
                                  </Avatar>
                                  <div>
-                                     <p className="font-semibold text-sm">{suggUser.name}</p>
-                                     <p className="text-xs text-muted-foreground">Suggested for you</p>
+                                    <Link href={`/profile/${suggUser.id}`} className="font-semibold text-sm hover:underline">{suggUser.name}</Link>
+                                    <p className="text-xs text-muted-foreground">Suggested for you</p>
                                  </div>
                              </div>
                               <Button
@@ -613,3 +617,5 @@ export default function FeedPage() {
     </>
   )
 }
+
+    
