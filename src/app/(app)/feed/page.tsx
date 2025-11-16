@@ -136,7 +136,8 @@ const PostComments = ({ post }: { post: any }) => {
           },
           text: comment,
           timestamp: serverTimestamp(),
-        })
+        }),
+        commentsCount: increment(1)
       });
 
       if (user.uid !== post.author.uid) {
@@ -171,7 +172,7 @@ const PostComments = ({ post }: { post: any }) => {
   return (
     <>
       <p className="text-xs text-muted-foreground cursor-pointer hover:underline">
-        View all {post.comments?.length || 0} comments
+        View all {post.commentsCount || post.comments?.length || 0} comments
       </p>
       {post.comments?.slice(-2).map((c: any, index: number) => (
         <p key={index} className="text-sm">
@@ -196,7 +197,7 @@ const PostComments = ({ post }: { post: any }) => {
 };
 
 
-const LikeButton = ({ postId, authorId, likesCount }: { postId: string, authorId: string, likesCount: number }) => {
+const LikeButton = ({ postId, authorId }: { postId: string, authorId: string }) => {
     const user = auth.currentUser;
     const likeRef = user ? doc(db, "posts", postId, "likes", user.uid) : null;
     const [likeDoc, loading, error] = useDocumentData(likeRef);
@@ -213,11 +214,11 @@ const LikeButton = ({ postId, authorId, likesCount }: { postId: string, authorId
             if (hasLiked) {
                 // Unlike
                 await deleteDoc(likeRef);
-                await updateDoc(postRef, { likes: increment(-1) });
+                await updateDoc(postRef, { likesCount: increment(-1) });
             } else {
                 // Like
                 await setDoc(likeRef, { userId: user.uid });
-                await updateDoc(postRef, { likes: increment(1) });
+                await updateDoc(postRef, { likesCount: increment(1) });
                 
                 // Do not send notification if liking your own post
                 if(user.uid !== authorId) {
@@ -446,7 +447,7 @@ export default function FeedPage() {
   const usersRef = collection(db, "users");
   const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
   
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const twentyFourHoursAgo = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000), []);
   const storiesQuery = query(collection(db, "stories"), where("timestamp", ">", twentyFourHoursAgo), orderBy("timestamp", "desc"));
   const [storiesSnapshot, storiesLoading, storiesError] = useCollection(storiesQuery);
 
@@ -474,6 +475,9 @@ export default function FeedPage() {
               setHasMore(true);
           }
           setLoading(false);
+        }, (err) => {
+            console.error("Error fetching posts:", err);
+            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -586,8 +590,8 @@ export default function FeedPage() {
         content: postContent,
         imageUrl: imageUrl,
         mediaType: mediaType,
-        likes: 0,
-        comments: [],
+        likesCount: 0,
+        commentsCount: 0,
         timestamp: serverTimestamp(),
       });
       setPostContent("");
@@ -756,12 +760,12 @@ export default function FeedPage() {
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
                      <div className="flex gap-2">
-                        <LikeButton postId={post.id} authorId={post.author.uid} likesCount={post.likes} />
+                        <LikeButton postId={post.id} authorId={post.author.uid} />
                          <Button variant="ghost" size="icon">
                             <MessageSquare className="h-6 w-6" />
                         </Button>
                      </div>
-                     <p className="font-semibold text-sm">{post.likes} likes</p>
+                     <p className="font-semibold text-sm">{post.likesCount || 0} likes</p>
                     {post.content && <p className="text-sm"><Link href={`/profile/${post.author.uid}`} className="font-semibold mr-1 hover:underline">{post.author.name}</Link>{post.content}</p>}
                     <PostComments post={post} />
                 </CardFooter>
