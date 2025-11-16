@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useDocumentData, useCollectionData } from "react-firebase-hooks/firestore";
-import { doc, collection, query, where, orderBy, DocumentData, getDocs, onSnapshot, setDoc, deleteDoc, serverTimestamp, addDoc } from "firebase/firestore";
+import { doc, collection, query, where, orderBy, DocumentData, getDocs, onSnapshot, setDoc, deleteDoc, serverTimestamp, addDoc, increment } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,8 +37,8 @@ export default function UserProfilePage({ params }: { params: { uid: string } })
     const [posts, loadingPosts, errorPosts] = useCollectionData(query(collection(db, "posts"), where("author.uid", "==", params.uid), orderBy("timestamp", "desc")));
     
     // Follower and Following counts
-    const [followers, setFollowers] = useState<number>(0);
-    const [following, setFollowing] = useState<number>(0);
+    const [followersCount, setFollowersCount] = useState<number>(0);
+    const [followingCount, setFollowingCount] = useState<number>(0);
 
     // Is current user following this profile?
     const [isFollowing, setIsFollowing] = useState(false);
@@ -49,8 +49,8 @@ export default function UserProfilePage({ params }: { params: { uid: string } })
         const followersRef = collection(db, "users", params.uid, "followers");
         const followingRef = collection(db, "users", params.uid, "following");
         
-        const unsubFollowers = onSnapshot(followersRef, (snapshot) => setFollowers(snapshot.size));
-        const unsubFollowing = onSnapshot(followingRef, (snapshot) => setFollowing(snapshot.size));
+        const unsubFollowers = onSnapshot(followersRef, (snapshot) => setFollowersCount(snapshot.size));
+        const unsubFollowing = onSnapshot(followingRef, (snapshot) => setFollowingCount(snapshot.size));
 
         return () => {
             unsubFollowers();
@@ -80,16 +80,19 @@ export default function UserProfilePage({ params }: { params: { uid: string } })
     const handleFollowToggle = async () => {
         if (!currentUser || currentUser.uid === params.uid) return;
 
-        const followingRef = doc(db, "users", currentUser.uid, "following", params.uid);
-        const followerRef = doc(db, "users", params.uid, "followers", currentUser.uid);
+        const currentUserFollowingRef = doc(db, "users", currentUser.uid, "following", params.uid);
+        const targetUserFollowersRef = doc(db, "users", params.uid, "followers", currentUser.uid);
         const notificationRef = collection(db, "users", params.uid, "notifications");
 
         if (isFollowing) {
-            await deleteDoc(followingRef);
-            await deleteDoc(followerRef);
+            // Unfollow
+            await deleteDoc(currentUserFollowingRef);
+            await deleteDoc(targetUserFollowersRef);
         } else {
-            await setDoc(followingRef, { timestamp: serverTimestamp() });
-            await setDoc(followerRef, { timestamp: serverTimestamp() });
+            // Follow
+            await setDoc(currentUserFollowingRef, { timestamp: serverTimestamp() });
+            await setDoc(targetUserFollowersRef, { timestamp: serverTimestamp() });
+            
             await addDoc(notificationRef, {
                 type: "follow",
                 from: {
@@ -167,16 +170,16 @@ export default function UserProfilePage({ params }: { params: { uid: string } })
                         <p className="text-muted-foreground">{user?.email}</p>
                         <div className="flex gap-4 text-sm pt-2">
                             <p><span className="font-bold">{posts?.length || 0}</span> posts</p>
-                            <p><span className="font-bold">{followers}</span> followers</p>
-                            <p><span className="font-bold">{following}</span> following</p>
+                            <p><span className="font-bold">{followersCount}</span> followers</p>
+                            <p><span className="font-bold">{followingCount}</span> following</p>
                         </div>
                         <div className="pt-2">
                             {isOwnProfile ? (
                                 <Button variant="secondary" asChild>
-                                    <a href="/profile">
+                                    <Link href="/profile">
                                         <Settings className="mr-2 h-4 w-4" />
                                         Edit Profile
-                                    </a>
+                                    </Link>
                                 </Button>
                             ) : (
                                 <div className="flex gap-2">

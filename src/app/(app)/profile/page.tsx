@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 const profileFormSchema = z.object({
     fullName: z.string().min(2, "Name must be at least 2 characters."),
@@ -213,6 +214,9 @@ export default function ProfilePage() {
     const [user, setUser] = useState(auth.currentUser);
     const [posts, setPosts] = useState<DocumentData[]>([]);
     const [loadingPosts, setLoadingPosts] = useState(true);
+    const [followersCount, setFollowersCount] = useState(0);
+    const [followingCount, setFollowingCount] = useState(0);
+
 
     const forceUpdate = useCallback(() => {
       setUser(null);
@@ -233,7 +237,7 @@ export default function ProfilePage() {
         const postsRef = collection(db, "posts");
         const q = query(postsRef, where("author.uid", "==", user.uid), orderBy("timestamp", "desc"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubPosts = onSnapshot(q, (snapshot) => {
             const userPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setPosts(userPosts);
             setLoadingPosts(false);
@@ -242,7 +246,18 @@ export default function ProfilePage() {
             setLoadingPosts(false);
         });
 
-        return () => unsubscribe();
+        const followersRef = collection(db, "users", user.uid, "followers");
+        const unsubFollowers = onSnapshot(followersRef, (snapshot) => setFollowersCount(snapshot.size));
+
+        const followingRef = collection(db, "users", user.uid, "following");
+        const unsubFollowing = onSnapshot(followingRef, (snapshot) => setFollowingCount(snapshot.size));
+
+
+        return () => {
+            unsubPosts();
+            unsubFollowers();
+            unsubFollowing();
+        };
     }, [user]);
 
     return (
@@ -257,9 +272,8 @@ export default function ProfilePage() {
                         <h1 className="text-2xl md:text-3xl font-bold">{user?.displayName}</h1>
                         <div className="flex gap-4 text-sm">
                             <p><span className="font-bold">{posts.length}</span> posts</p>
-                            {/* Placeholder stats */}
-                            <p><span className="font-bold">123</span> followers</p>
-                            <p><span className="font-bold">456</span> following</p>
+                            <p><span className="font-bold">{followersCount}</span> followers</p>
+                            <p><span className="font-bold">{followingCount}</span> following</p>
                         </div>
                         {user && <EditProfileDialog user={user} onUpdate={forceUpdate} />}
                     </div>
@@ -298,3 +312,5 @@ export default function ProfilePage() {
         </div>
     )
 }
+
+    
