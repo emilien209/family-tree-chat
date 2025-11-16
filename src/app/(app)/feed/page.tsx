@@ -3,17 +3,20 @@
 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion, where } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
-import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X, MoreHorizontal, Send } from "lucide-react"
+import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X, MoreHorizontal, Send, Trash2, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -51,17 +54,29 @@ interface User {
   avatar?: string;
 }
 
-const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => (
+interface Story {
+  id: string;
+  author: {
+    name: string;
+    avatar: string;
+    uid: string;
+  };
+  imageUrl: string;
+  timestamp: any;
+}
+
+
+const StoryViewer = ({ story, onClose }: { story: Story, onClose: () => void }) => (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="relative w-full max-w-sm h-[90vh] bg-background rounded-lg overflow-hidden shadow-2xl">
-        <Image src={`https://picsum.photos/seed/${user.id}/400/800`} alt={`Story by ${user.name}`} fill objectFit="cover" loading="lazy"/>
+        <Image src={story.imageUrl} alt={`Story by ${story.author.name}`} fill objectFit="cover" loading="lazy"/>
         <div className="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/50 to-transparent">
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar} />
-              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+              <AvatarImage src={story.author.avatar} />
+              <AvatarFallback>{story.author.name?.charAt(0)}</AvatarFallback>
             </Avatar>
-            <p className="text-white font-semibold text-sm">{user.name}</p>
+            <p className="text-white font-semibold text-sm">{story.author.name}</p>
           </div>
         </div>
         <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-white" onClick={onClose}>
@@ -232,6 +247,182 @@ const LikeButton = ({ postId, authorId, likesCount }: { postId: string, authorId
             <Heart className={`h-6 w-6 ${hasLiked ? 'text-red-500 fill-red-500' : ''}`} />
         </Button>
     )
+};
+
+const PostMenu = ({ post }: { post: any }) => {
+    const { toast } = useToast();
+    const user = auth.currentUser;
+
+    if (post.author.uid !== user?.uid) {
+        return null; // Or a menu with "Report" etc.
+    }
+
+    const handleDeletePost = async () => {
+        try {
+            // Delete the post document from Firestore
+            await deleteDoc(doc(db, "posts", post.id));
+
+            // If the post had an image, delete it from Storage
+            if (post.imageUrl && post.imageUrl.includes('firebasestorage')) {
+                const imageRef = ref(storage, post.imageUrl);
+                await deleteObject(imageRef);
+            }
+
+            toast({
+                title: "Post Deleted",
+                description: "Your post has been successfully removed.",
+            });
+        } catch (error) {
+            console.error("Error deleting post: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not delete the post. Please try again.",
+            });
+        }
+    };
+
+    return (
+        <AlertDialog>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your post and remove its data from our servers.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+};
+
+
+const AddStoryDialog = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [isPosting, setIsPosting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const user = auth.currentUser;
+    const { toast } = useToast();
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => setImagePreview(e.target?.result as string);
+            reader.readAsDataURL(file);
+        } else {
+            toast({ variant: "destructive", title: "Invalid File", description: "Please select an image file." });
+        }
+    };
+    
+    const reset = () => {
+        setImageFile(null);
+        setImagePreview(null);
+        setIsPosting(false);
+        setIsOpen(false);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+    }
+
+    const handleAddStory = async () => {
+        if (!imageFile || !user) return;
+        setIsPosting(true);
+
+        try {
+            const storageRef = ref(storage, `stories/${user.uid}/${Date.now()}_${imageFile.name}`);
+            const uploadTask = await uploadBytesResumable(storageRef, imageFile);
+            const downloadURL = await getDownloadURL(uploadTask.ref);
+
+            await addDoc(collection(db, 'stories'), {
+                author: {
+                    name: user.displayName,
+                    avatar: user.photoURL,
+                    uid: user.uid,
+                },
+                imageUrl: downloadURL,
+                timestamp: serverTimestamp(),
+            });
+
+            toast({ title: "Story Added!", description: "Your story is now visible to your family."});
+            reset();
+        } catch (error) {
+            console.error("Error adding story: ", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not add your story." });
+            setIsPosting(false);
+        }
+    };
+    
+    return (
+         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <div className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px] text-left cursor-pointer">
+                    <div className="relative w-[60px] h-[60px] flex items-center justify-center rounded-full bg-muted">
+                        <Avatar className="w-[56px] h-[56px] border-2 border-background">
+                            <AvatarImage src={user?.photoURL || undefined} />
+                            <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5 border-2 border-background">
+                            <Plus className="h-4 w-4" />
+                        </div>
+                    </div>
+                     <p className="text-xs truncate w-full text-center">Your Story</p>
+                </div>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add to your story</DialogTitle>
+                    <DialogDescription>Share a photo that will be visible for 24 hours.</DialogDescription>
+                </DialogHeader>
+                {imagePreview ? (
+                    <div className="space-y-4">
+                        <Image src={imagePreview} alt="Story preview" width={400} height={700} className="rounded-md object-contain max-h-[60vh]" />
+                        <div className="flex justify-end gap-2">
+                             <Button variant="ghost" onClick={reset} disabled={isPosting}>Cancel</Button>
+                             <Button onClick={handleAddStory} disabled={isPosting}>
+                                {isPosting && <Loader2 className="mr-2 animate-spin"/>}
+                                {isPosting ? "Sharing..." : "Share Story"}
+                             </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div 
+                        className="flex flex-col items-center justify-center border-2 border-dashed border-muted rounded-lg p-12 text-center cursor-pointer hover:border-primary transition-colors mt-4"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <PlusCircle className="h-12 w-12 text-muted-foreground" />
+                        <p className="mt-4 text-lg font-semibold">Select a photo to share</p>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    )
+
 }
 
 export default function FeedPage() {
@@ -243,7 +434,7 @@ export default function FeedPage() {
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [following, setFollowing] = useState<string[]>([]);
-  const [selectedStoryUser, setSelectedStoryUser] = useState<User | null>(null);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
 
   const [posts, setPosts] = useState<DocumentData[]>([]);
   const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
@@ -253,6 +444,15 @@ export default function FeedPage() {
 
   const usersRef = collection(db, "users");
   const [usersSnapshot, usersLoading, usersError] = useCollection(usersRef);
+  
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const storiesQuery = query(collection(db, "stories"), where("timestamp", ">", twentyFourHoursAgo), orderBy("timestamp", "desc"));
+  const [storiesSnapshot, storiesLoading, storiesError] = useCollection(storiesQuery);
+
+  const stories = useMemo(() => {
+    if (!storiesSnapshot) return [];
+    return storiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Story));
+  }, [storiesSnapshot]);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -329,14 +529,6 @@ export default function FeedPage() {
     return unsub;
   }, [user]);
 
-  const stories = useMemo(() => {
-    if (!usersSnapshot) return [];
-    return usersSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as User))
-        .filter(u => u.id !== user?.uid)
-        .slice(0, 8);
-  }, [usersSnapshot, user]);
-
   const suggestedUsers = useMemo(() => {
     if (!usersSnapshot || !user) return [];
     return usersSnapshot.docs
@@ -380,7 +572,6 @@ export default function FeedPage() {
         const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${postImageFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, postImageFile);
         
-        // This is a simplified version. For a real app, you'd want to handle progress.
         await uploadTask;
         imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
       }
@@ -400,7 +591,6 @@ export default function FeedPage() {
       });
       setPostContent("");
       removeImage();
-    // onSnapshot will handle UI update
     } catch (err) {
       console.error("Error creating post: ", err);
       toast({
@@ -449,26 +639,29 @@ export default function FeedPage() {
 
   return (
     <>
-    {selectedStoryUser && <StoryViewer user={selectedStoryUser} onClose={() => setSelectedStoryUser(null)} />}
+    {selectedStory && <StoryViewer story={selectedStory} onClose={() => setSelectedStory(null)} />}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-4 md:p-6 max-w-6xl mx-auto">
         <div className="md:col-span-2 space-y-6">
             <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
-                {usersLoading && [...Array(8)].map((_, i) => (
+                {storiesLoading && [...Array(8)].map((_, i) => (
                     <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px]">
                        <Skeleton className="w-[60px] h-[60px] rounded-full" />
                        <Skeleton className="h-3 w-16" />
                     </div>
                 ))}
-                {stories.map(story => (
-                    <button key={story.id} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px] text-left" onClick={() => setSelectedStoryUser(story)}>
+
+                <AddStoryDialog />
+
+                {stories.filter(story => story.author.uid !== user?.uid).map(story => (
+                    <button key={story.id} className="flex-shrink-0 flex flex-col items-center gap-2 w-[80px] text-left" onClick={() => setSelectedStory(story)}>
                         <div className="relative w-[60px] h-[60px]">
                           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-spin-slow"></div>
                            <Avatar className="w-[56px] h-[56px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-background">
-                                <AvatarImage src={story.avatar} />
-                                <AvatarFallback>{story.name?.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={story.author.avatar} />
+                                <AvatarFallback>{story.author.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                         </div>
-                        <p className="text-xs truncate w-full text-center">{story.name}</p>
+                        <p className="text-xs truncate w-full text-center">{story.author.name}</p>
                     </button>
                 ))}
             </div>
@@ -551,7 +744,7 @@ export default function FeedPage() {
                                 </p>
                             </div>
                         </div>
-                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
+                        <PostMenu post={post} />
                     </div>
                 </CardHeader>
                 
