@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion, where, Timestamp } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button"
@@ -62,7 +63,7 @@ interface Story {
     uid: string;
   };
   imageUrl: string;
-  timestamp: any;
+  timestamp: Timestamp;
 }
 
 
@@ -828,5 +829,3 @@ export default function FeedPage() {
     </>
   )
 }
-
-    
