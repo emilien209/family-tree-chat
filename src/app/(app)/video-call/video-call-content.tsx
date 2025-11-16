@@ -139,7 +139,7 @@ export default function VideoCallContent() {
         {hasPermission === false && (
             <div className="flex h-full items-center justify-center">
                  <Alert variant="destructive" className="max-w-sm">
-                    <AlertTitle>Camera & Mic Required</AlertTitle>
+                    <AlertTitle>Camera &amp; Mic Required</AlertTitle>
                     <AlertDescription>
                         Please allow camera and microphone access to join the call. You may need to refresh after granting permissions.
                     </AlertDescription>
