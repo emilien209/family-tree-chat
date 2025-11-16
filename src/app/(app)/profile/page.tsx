@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { auth, storage, db } from "@/lib/firebase";
 import { updateProfile } from "firebase/auth";
 import { doc, updateDoc, collection, query, where, onSnapshot, orderBy, DocumentData } from "firebase/firestore";
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { ref, uploadString, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const profileFormSchema = z.object({
 const PostGridItem = ({ post }: { post: DocumentData }) => (
     <div className="relative aspect-square bg-muted">
         {post.imageUrl && (
-             post.imageUrl.includes('.mp4') || post.imageUrl.includes('video') ? (
+             post.mediaType && post.mediaType.startsWith('video') ? (
                 <video src={post.imageUrl} className="w-full h-full object-cover" />
             ) : (
                 <Image src={post.imageUrl} alt={post.content || "User post"} fill className="object-cover" />

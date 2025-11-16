@@ -5,14 +5,14 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { collection, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, increment, getDoc, setDoc, deleteDoc, onSnapshot, limit, startAfter, getDocs, DocumentData, arrayUnion } from 'firebase/firestore';
 import { db, auth, storage } from '@/lib/firebase';
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Heart, MessageSquare, PlusCircle, Loader2, AlertTriangle, X, MoreHorizontal, Send } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistanceToNow, subHours } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -70,12 +70,12 @@ const StoryViewer = ({ user, onClose }: { user: User, onClose: () => void }) => 
     </div>
 );
 
-const PostMedia = ({ src, alt }: { src: string; alt: string }) => {
-    const isVideo = src.includes('.mp4') || src.includes('video');
+const PostMedia = ({ post }: { post: any }) => {
+    const isVideo = post.mediaType && post.mediaType.startsWith('video');
     if (isVideo) {
-        return <video src={src} controls className="w-full object-cover aspect-square" />;
+        return <video src={post.imageUrl} controls className="w-full object-cover aspect-square" />;
     }
-    return <Image src={src} alt={alt} width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />;
+    return <Image src={post.imageUrl} alt={post.content || 'Post media'} width={700} height={700} className="w-full object-cover aspect-square" loading="lazy" />;
 };
 
 const PostComments = ({ post }: { post: any }) => {
@@ -219,7 +219,8 @@ export default function FeedPage() {
   const [user, setUser] = useState(auth.currentUser);
   const [postContent, setPostContent] = useState("");
   const [isPosting, setIsPosting] = useState(false);
-  const [postImage, setPostImage] = useState<string | null>(null);
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [following, setFollowing] = useState<string[]>([]);
   const [selectedStoryUser, setSelectedStoryUser] = useState<User | null>(null);
@@ -328,16 +329,18 @@ export default function FeedPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setPostImageFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPostImage(e.target?.result as string);
+        setPostImagePreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
   const removeImage = () => {
-    setPostImage(null);
+    setPostImageFile(null);
+    setPostImagePreview(null);
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -345,15 +348,21 @@ export default function FeedPage() {
 
 
   const handleCreatePost = async () => {
-    if ((postContent.trim() === "" && !postImage) || !user) return;
+    if ((postContent.trim() === "" && !postImageFile) || !user) return;
 
     setIsPosting(true);
     try {
       let imageUrl = "";
-      if (postImage) {
-        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}`);
-        const snapshot = await uploadString(storageRef, postImage, 'data_url');
-        imageUrl = await getDownloadURL(snapshot.ref);
+      let mediaType = "text";
+      
+      if (postImageFile) {
+        mediaType = postImageFile.type;
+        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${postImageFile.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, postImageFile);
+        
+        // This is a simplified version. For a real app, you'd want to handle progress.
+        await uploadTask;
+        imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
       }
 
       await addDoc(collection(db, 'posts'), {
@@ -364,16 +373,14 @@ export default function FeedPage() {
         },
         content: postContent,
         imageUrl: imageUrl,
+        mediaType: mediaType,
         likes: 0,
         comments: [],
         timestamp: serverTimestamp(),
       });
       setPostContent("");
-      setPostImage(null);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = "";
-    }
-    // No need to call fetchPosts manually, onSnapshot will handle it.
+      removeImage();
+    // onSnapshot will handle UI update
     } catch (err) {
       console.error("Error creating post: ", err);
       toast({
@@ -463,9 +470,9 @@ export default function FeedPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                    {postImage && (
+                    {postImagePreview && (
                         <div className="relative w-fit mx-auto mb-4">
-                            <Image src={postImage} alt="Preview" width={400} height={400} className="rounded-md object-cover max-h-[300px]" loading="lazy" />
+                            <Image src={postImagePreview} alt="Preview" width={400} height={400} className="rounded-md object-cover max-h-[300px]" loading="lazy" />
                             <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
                                 <X className="h-4 w-4" />
                             </Button>
@@ -477,12 +484,12 @@ export default function FeedPage() {
                             ref={fileInputRef}
                             onChange={handleFileChange}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,video/*"
                         />
                         <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isPosting}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Photo
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Media
                         </Button>
-                        <Button onClick={handleCreatePost} disabled={isPosting || (postContent.trim() === '' && !postImage)}>
+                        <Button onClick={handleCreatePost} disabled={isPosting || (postContent.trim() === '' && !postImageFile)}>
                         {isPosting ? <Loader2 className="animate-spin" /> : "Post"}
                         </Button>
                     </div>
@@ -528,7 +535,7 @@ export default function FeedPage() {
                 
                 {post.imageUrl && (
                     <CardContent className="p-0">
-                         <PostMedia src={post.imageUrl} alt={post.content || 'Post media'} />
+                         <PostMedia post={post} />
                     </CardContent>
                 )}
                 <CardFooter className="flex flex-col items-start gap-2 p-4">
@@ -606,5 +613,3 @@ export default function FeedPage() {
     </>
   )
 }
-
-    

@@ -12,9 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { db, auth, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 const ReelItem = ({ reel }: { reel: DocumentData }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -81,20 +82,23 @@ const ReelItem = ({ reel }: { reel: DocumentData }) => {
 const UploadReelDialog = ({ onUploadSuccess }: { onUploadSuccess: () => void }) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaFile, setMediaFile] = useState<string | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [isPosting, setIsPosting] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
+  const [videoUrlInput, setVideoUrlInput] = useState("");
+  const [isUrlSource, setIsUrlSource] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const user = auth.currentUser;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("video/")) {
+      setMediaFile(file);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setMediaFile(e.target?.result as string);
-      };
+      reader.onload = (e) => setPreviewUrl(e.target?.result as string);
       reader.readAsDataURL(file);
+      setIsUrlSource(false);
     } else {
         toast({
             variant: "destructive",
@@ -105,52 +109,59 @@ const UploadReelDialog = ({ onUploadSuccess }: { onUploadSuccess: () => void }) 
   };
 
   const handleUrlSubmit = () => {
-    if(videoUrl) {
-        setMediaFile(videoUrl);
+    if(videoUrlInput && (videoUrlInput.startsWith('http://') || videoUrlInput.startsWith('https://'))) {
+        setMediaFile(null);
+        setPreviewUrl(videoUrlInput);
+        setIsUrlSource(true);
+    } else {
+        toast({ variant: "destructive", title: "Invalid URL" });
     }
   }
 
   const removeMedia = () => {
     setMediaFile(null);
-    setVideoUrl("");
+    setPreviewUrl(null);
+    setVideoUrlInput("");
+    setIsUrlSource(false);
+    setUploadProgress(0);
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
     }
   };
 
   const handleShareReel = async () => {
-    if (!mediaFile || !user) return;
+    if (!previewUrl || !user) return;
     setIsPosting(true);
+    setUploadProgress(0);
     
     try {
-        let finalVideoUrl = mediaFile;
-        if(mediaFile.startsWith('data:')){
-            const storageRef = ref(storage, `reels/${user.uid}/${Date.now()}`);
-            const snapshot = await uploadString(storageRef, mediaFile, 'data_url');
-            finalVideoUrl = await getDownloadURL(snapshot.ref);
-        }
+        let finalVideoUrl = previewUrl;
+        if(!isUrlSource && mediaFile) {
+            const storageRef = ref(storage, `reels/${user.uid}/${Date.now()}_${mediaFile.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, mediaFile);
 
-        await addDoc(collection(db, "reels"), {
-            author: {
-                name: user.displayName,
-                avatar: user.photoURL,
-                uid: user.uid,
-            },
-            caption: caption,
-            videoUrl: finalVideoUrl,
-            likes: 0,
-            comments: [],
-            timestamp: serverTimestamp(),
-        });
-      
-        toast({
-            title: "Reel Shared!",
-            description: "Your new reel is now available for the family to watch.",
-        });
-        
-        removeMedia();
-        setCaption("");
-        onUploadSuccess();
+             uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    setUploadProgress(progress);
+                },
+                (error) => {
+                    console.error("Upload failed:", error);
+                    toast({
+                    variant: "destructive",
+                    title: "Upload Error",
+                    description: "Could not upload your reel.",
+                    });
+                    setIsPosting(false);
+                },
+                async () => {
+                    finalVideoUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                    await createReelDocument(finalVideoUrl);
+                }
+            );
+        } else {
+            await createReelDocument(finalVideoUrl);
+        }
 
     } catch (err) {
         console.error("Error sharing reel: ", err);
@@ -159,27 +170,53 @@ const UploadReelDialog = ({ onUploadSuccess }: { onUploadSuccess: () => void }) 
             title: "Error",
             description: "Could not share reel. Please try again.",
         });
-    } finally {
         setIsPosting(false);
     }
   };
+  
+  const createReelDocument = async (videoUrl: string) => {
+     if (!user) return;
+      await addDoc(collection(db, "reels"), {
+            author: {
+                name: user.displayName,
+                avatar: user.photoURL,
+                uid: user.uid,
+            },
+            caption: caption,
+            videoUrl: videoUrl,
+            likes: 0,
+            comments: [],
+            timestamp: serverTimestamp(),
+        });
+      
+        toast({
+            title: "Reel Shared!",
+            description: "Your new reel is now available.",
+        });
+        
+        removeMedia();
+        setCaption("");
+        setIsPosting(false);
+        onUploadSuccess();
+  }
 
   return (
     <DialogContent className="max-w-md">
         <DialogHeader>
             <DialogTitle>
-            {mediaFile ? "Preview & Share" : "Upload a new reel"}
+            {previewUrl ? "Preview & Share" : "Upload a new reel"}
             </DialogTitle>
         </DialogHeader>
         <div className="pt-4">
-        {mediaFile ? (
+        {previewUrl ? (
             <div className="space-y-4">
             <div className="relative w-full aspect-[9/16] bg-black rounded-lg">
-                <video src={mediaFile} controls className="w-full h-full rounded-md" />
+                <video src={previewUrl} controls className="w-full h-full rounded-md" />
                 <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}>
                     <X className="h-4 w-4" />
                 </Button>
             </div>
+             { isPosting && !isUrlSource && <Progress value={uploadProgress} className="w-full mt-2" />}
             <Textarea 
                 placeholder="Write a caption..." 
                 value={caption}
@@ -217,7 +254,7 @@ const UploadReelDialog = ({ onUploadSuccess }: { onUploadSuccess: () => void }) 
                         <LinkIcon className="h-12 w-12 text-muted-foreground" />
                         <p className="mt-4 text-lg font-semibold">Paste a video URL</p>
                         <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
-                            <Input type="url" placeholder="https://example.com/video.mp4" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+                            <Input type="url" placeholder="https://example.com/video.mp4" value={videoUrlInput} onChange={(e) => setVideoUrlInput(e.target.value)} />
                             <Button type="button" onClick={handleUrlSubmit}>Add</Button>
                         </div>
                         </div>
@@ -225,7 +262,7 @@ const UploadReelDialog = ({ onUploadSuccess }: { onUploadSuccess: () => void }) 
             </Tabs>
         )}
         </div>
-        {mediaFile && (
+        {previewUrl && (
         <DialogFooter>
             <Button onClick={handleShareReel} disabled={isPosting} className="w-full">
             {isPosting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -300,7 +337,3 @@ export default function ReelsPage() {
     </Dialog>
   );
 }
-
-    
-
-    

@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, onSnapshot, query, orderBy, startAfter, limit, getDocs, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, startAfter, limit, getDocs, DocumentData, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,13 +30,13 @@ export default function MediaPage() {
         try {
             const mediaQuery = query(
                 collection(db, 'posts'),
+                where('imageUrl', '!=', ''), // Filter for posts with media
+                orderBy('imageUrl'), // Firestore requires orderBy on the same field as inequality
                 orderBy('timestamp', 'desc'),
                 limit(MEDIA_PER_PAGE)
             );
             const documentSnapshots = await getDocs(mediaQuery);
-            const mediaData = documentSnapshots.docs
-                .map(doc => doc.data())
-                .filter(data => data.imageUrl); // Only include posts with images
+            const mediaData = documentSnapshots.docs.map(doc => doc.data());
 
             setMedia(mediaData);
             const lastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1];
@@ -56,14 +57,14 @@ export default function MediaPage() {
         try {
             const mediaQuery = query(
                 collection(db, 'posts'),
+                 where('imageUrl', '!=', ''),
+                orderBy('imageUrl'),
                 orderBy('timestamp', 'desc'),
                 startAfter(lastDoc),
                 limit(MEDIA_PER_PAGE)
             );
             const documentSnapshots = await getDocs(mediaQuery);
-            const mediaData = documentSnapshots.docs
-                .map(doc => doc.data())
-                .filter(data => data.imageUrl);
+            const mediaData = documentSnapshots.docs.map(doc => doc.data());
 
             setMedia(prev => [...prev, ...mediaData]);
             const lastVisible = documentSnapshots.docs[documentSnapshots.docs.length - 1];
@@ -97,7 +98,7 @@ export default function MediaPage() {
                     {!loading && media.map((item, index) => (
                         <Card key={index} className="overflow-hidden aspect-square">
                             <CardContent className="p-0 h-full w-full">
-                                {item.imageUrl.includes('.mp4') || item.imageUrl.includes('video') ? (
+                                {item.mediaType && item.mediaType.startsWith('video') ? (
                                     <video
                                         src={item.imageUrl}
                                         controls

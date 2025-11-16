@@ -16,13 +16,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
+type MediaSource = {
+  file: File | null;
+  previewUrl: string;
+  isUrl: boolean;
+};
+
 export default function CreatePage() {
   const { toast } = useToast();
   const router = useRouter();
   const user = auth.currentUser;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+
+  const [mediaSource, setMediaSource] = useState<MediaSource | null>(null);
   const [caption, setCaption] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -31,29 +37,36 @@ export default function CreatePage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setMediaFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
-        setMediaPreview(e.target?.result as string);
+        setMediaSource({
+          file: file,
+          previewUrl: e.target?.result as string,
+          isUrl: false
+        });
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleUrlSubmit = async () => {
-    if(imageUrl) {
-        // This is a simplified approach. In a real app, you'd fetch the URL
-        // on a server to avoid CORS issues and then upload it.
-        // For now, we'll just set it as the preview.
-        setMediaPreview(imageUrl);
-        // We're not setting a file here, so upload from URL will be handled differently
-        setMediaFile(null); 
+    if(imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+      setMediaSource({
+        file: null,
+        previewUrl: imageUrl,
+        isUrl: true
+      });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Invalid URL",
+            description: "Please enter a valid image or video URL.",
+        });
     }
   }
 
   const removeMedia = () => {
-    setMediaFile(null);
-    setMediaPreview(null);
+    setMediaSource(null);
     setImageUrl("");
     setUploadProgress(0);
     if(fileInputRef.current) {
@@ -61,67 +74,18 @@ export default function CreatePage() {
     }
   };
 
-  const handleCreatePost = async () => {
-    if (!mediaPreview || !user) return;
-
-    setIsPosting(true);
-    setUploadProgress(0);
-
-    try {
-      // If a file was selected, upload it
-      if (mediaFile) {
-        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${mediaFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, mediaFile);
-
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error("Upload failed:", error);
-            toast({
-              variant: "destructive",
-              title: "Upload Error",
-              description: "Could not upload your file. Please try again.",
-            });
-            setIsPosting(false);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            await createFirestoreDoc(downloadURL);
-          }
-        );
-      } else if (mediaPreview.startsWith('http')) {
-        // If it's a URL, just use it directly
-        // This is not a good practice for production as it can lead to mixed content warnings and other issues.
-        // A better approach is to fetch the image server-side, then upload to your own storage.
-        // For this demo, we'll proceed with the direct URL.
-        await createFirestoreDoc(mediaPreview);
-      }
-    } catch (err) {
-      console.error("Error creating post: ", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Could not create post. Please try again.",
-      });
-      setIsPosting(false);
-    }
-  };
-
-  const createFirestoreDoc = async (mediaUrl: string) => {
+  const createFirestoreDoc = async (mediaUrl: string, mediaType: string) => {
     if (!user) return;
      try {
         await addDoc(collection(db, "posts"), {
             author: {
-            name: user.displayName,
-            avatar: user.photoURL,
-            uid: user.uid,
+                name: user.displayName,
+                avatar: user.photoURL,
+                uid: user.uid,
             },
             content: caption,
             imageUrl: mediaUrl,
-            mediaType: mediaFile?.type || (mediaUrl.includes('.mp4') ? 'video/mp4' : 'image/jpeg'),
+            mediaType: mediaType,
             likes: 0,
             comments: [],
             timestamp: serverTimestamp(),
@@ -140,10 +104,66 @@ export default function CreatePage() {
             title: "Error",
             description: "Could not save post details. Please try again.",
         });
-     } finally {
-        setIsPosting(false);
+        throw err; // Re-throw to be caught by the caller
      }
   }
+
+
+  const handleCreatePost = async () => {
+    if (!mediaSource || !user) return;
+
+    setIsPosting(true);
+    setUploadProgress(0);
+
+    try {
+      if (!mediaSource.isUrl && mediaSource.file) {
+        // Upload file from device
+        const file = mediaSource.file;
+        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => {
+            console.error("Upload failed:", error);
+            toast({
+              variant: "destructive",
+              title: "Upload Error",
+              description: "Could not upload your file. Please try again.",
+            });
+            setIsPosting(false);
+          },
+          async () => {
+            try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                await createFirestoreDoc(downloadURL, file.type);
+            } catch (finalError) {
+                setIsPosting(false);
+            }
+          }
+        );
+      } else {
+        // Use media from URL directly
+        const mediaUrl = mediaSource.previewUrl;
+        // Basic media type detection from URL extension
+        let mediaType = 'image';
+        if (/\.(mp4|webm|ogg)$/i.test(mediaUrl)) mediaType = 'video';
+        await createFirestoreDoc(mediaUrl, mediaType);
+      }
+    } catch (err) {
+      console.error("Error creating post: ", err);
+      // Toast is handled in createFirestoreDoc or the upload error handler
+      setIsPosting(false);
+    }
+  };
+
+  const mediaType = mediaSource?.isUrl 
+    ? (mediaSource.previewUrl.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image') 
+    : (mediaSource?.file?.type.startsWith('video/') ? 'video' : 'image');
+
 
   return (
     <div className="flex flex-col h-full">
@@ -157,23 +177,23 @@ export default function CreatePage() {
         <Card className="w-full max-w-lg">
           <CardHeader>
             <CardTitle>
-              {mediaPreview ? "Preview & Post" : "What would you like to share?"}
+              {mediaSource ? "Preview & Post" : "What would you like to share?"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {mediaPreview ? (
+            {mediaSource ? (
               <div className="space-y-4">
                 <div className="relative w-full aspect-square bg-black rounded-md">
-                   {mediaFile?.type.startsWith('video/') || (mediaPreview && !mediaFile && mediaPreview.match(/\.(mp4|webm|ogg)$/i)) ? (
-                        <video src={mediaPreview} controls className="w-full h-full rounded-md object-contain" />
+                   {mediaType === 'video' ? (
+                        <video src={mediaSource.previewUrl} controls className="w-full h-full rounded-md object-contain" />
                     ) : (
-                        mediaPreview && <Image src={mediaPreview} alt="Preview" fill className="rounded-md object-contain" />
+                        <Image src={mediaSource.previewUrl} alt="Preview" fill className="rounded-md object-contain" />
                     )}
                    <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia} disabled={isPosting}>
                       <X className="h-4 w-4" />
                    </Button>
                 </div>
-                { isPosting && mediaFile && <Progress value={uploadProgress} className="w-full mt-2" />}
+                { isPosting && !mediaSource.isUrl && <Progress value={uploadProgress} className="w-full mt-2" />}
                 <Textarea 
                   placeholder="Write a caption..." 
                   value={caption}
@@ -220,7 +240,7 @@ export default function CreatePage() {
               
             )}
           </CardContent>
-          {mediaPreview && (
+          {mediaSource && (
             <CardFooter className="justify-end">
               <Button onClick={handleCreatePost} disabled={isPosting}>
                 {isPosting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
